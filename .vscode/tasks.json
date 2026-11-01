@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": [],
+      "label": "npm: dev",
+      "detail": "next dev",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "type": "shell",
+      "command": "npx prisma studio",
+      "problemMatcher": [],
+      "label": "prisma: studio",
+      "detail": "Open Prisma Studio GUI for database",
+      "isBackground": true
+    }
+  ]
+}

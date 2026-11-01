@@ -1,0 +1,62 @@
+{
+  "family": "ivr-enterprise-platform",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/ivr-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/ivr-ecs-task-role",
+  "containerDefinitions": [
+    {
+      "name": "ivr-app",
+      "image": "123456789012.dkr.ecr.ap-south-1.amazonaws.com/ivr-enterprise-platform:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AWS_REGION", "value": "ap-south-1" },
+        { "name": "PORT", "value": "3000" },
+        { "name": "NEXT_PUBLIC_APP_URL", "value": "https://internship.ivrenterprise.com" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:123456789012:secret:ivr/production/database-url"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:123456789012:secret:ivr/production/jwt-secret"
+        },
+        {
+          "name": "RAZORPAY_KEY_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:123456789012:secret:ivr/production/razorpay-secret"
+        },
+        {
+          "name": "WHATSAPP_API_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:123456789012:secret:ivr/production/whatsapp-token"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ivr-enterprise-platform",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:3000/api/auth/me || exit 0"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      }
+    }
+  ]
+}

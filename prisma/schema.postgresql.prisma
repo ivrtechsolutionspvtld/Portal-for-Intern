@@ -1,0 +1,377 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MENTOR
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  REVISION_REQUESTED
+  APPROVED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum CertificateStatus {
+  VALID
+  REVOKED
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  passwordHash  String
+  name          String
+  role          Role         @default(STUDENT)
+  phone         String?
+  avatar        String?
+  status        UserStatus   @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  studentProfile   StudentProfile?
+  mentorProfile    MentorProfile?
+  sentMessages     Message[]         @relation("SentMessages")
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+}
+
+model StudentProfile {
+  id              String      @id @default(uuid())
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  college         String
+  department      String
+  graduationYear  Int
+  domain          String
+  batchId         String?
+  batch           Batch?      @relation(fields: [batchId], references: [id])
+  mentorId        String?
+  mentor          MentorProfile? @relation(fields: [mentorId], references: [id])
+  enrollmentDate  DateTime    @default(now())
+  resumeUrl       String?
+  bio             String?
+  cgpa            Float?
+  
+  attendanceRecords AttendanceRecord[]
+  submissions       ProjectSubmission[]
+  courseProgress    CourseProgress[]
+  certificate       Certificate?
+  paymentOrders     PaymentOrder[]
+  conversations     Conversation[]
+}
+
+model MentorProfile {
+  id              String      @id @default(uuid())
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation     String
+  department      String
+  expertise       String
+  bio             String?
+  maxStudents     Int         @default(30)
+  
+  assignedStudents StudentProfile[]
+  batches          Batch[]
+  attendanceSessions AttendanceSession[]
+  conversations    Conversation[]
+}
+
+model Application {
+  id              String            @id @default(uuid())
+  refNumber       String            @unique
+  fullName        String
+  email           String
+  phone           String
+  college         String
+  department      String
+  graduationYear  Int
+  domain          String
+  resumeUrl       String?
+  statement       String?
+  status          ApplicationStatus @default(PENDING)
+  notes           String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Batch {
+  id          String         @id @default(uuid())
+  name        String
+  domain      String
+  startDate   DateTime
+  endDate     DateTime
+  status      String         @default("ACTIVE")
+  mentorId    String?
+  mentor      MentorProfile? @relation(fields: [mentorId], references: [id])
+  createdAt   DateTime       @default(now())
+
+  students    StudentProfile[]
+  sessions    AttendanceSession[]
+  projects    Project[]
+  announcements Announcement[]
+}
+
+model Course {
+  id            String    @id @default(uuid())
+  title         String
+  domain        String
+  description   String
+  durationWeeks Int       @default(8)
+  level         String    @default("Intermediate")
+  thumbnail     String?
+  createdAt     DateTime  @default(now())
+
+  modules       Module[]
+}
+
+model Module {
+  id              String    @id @default(uuid())
+  courseId        String
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  orderIndex      Int
+  durationMinutes Int       @default(45)
+  videoUrl        String?
+  pdfUrl          String?
+  notes           String?
+  
+  progress        CourseProgress[]
+}
+
+model CourseProgress {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+
+  @@unique([studentId, moduleId])
+}
+
+model AttendanceSession {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  mentorId    String
+  mentor      MentorProfile @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  sessionDate DateTime @default(now())
+  token       String   @unique
+  expiresAt   DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model AttendanceRecord {
+  id          String           @id @default(uuid())
+  studentId   String
+  student     StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  batchId     String
+  date        DateTime
+  status      AttendanceStatus @default(PRESENT)
+  method      String           @default("MANUAL")
+  markedBy    String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+
+  @@unique([studentId, date])
+}
+
+model Project {
+  id           String      @id @default(uuid())
+  title        String
+  domain       String
+  description  String
+  requirements String
+  deadline     DateTime
+  maxScore     Int         @default(100)
+  batchId      String?
+  batch        Batch?      @relation(fields: [batchId], references: [id])
+  createdAt    DateTime    @default(now())
+
+  submissions  ProjectSubmission[]
+}
+
+model ProjectSubmission {
+  id             String           @id @default(uuid())
+  projectId      String
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  repoUrl        String
+  liveUrl        String?
+  fileUrl        String?
+  notes          String?
+  status         SubmissionStatus @default(SUBMITTED)
+  score          Int?
+  mentorFeedback String?
+  submittedAt    DateTime         @default(now())
+  gradedAt       DateTime?
+
+  @@unique([projectId, studentId])
+}
+
+model Certificate {
+  id                String            @id @default(uuid())
+  certificateNumber String            @unique
+  studentId         String            @unique
+  student           StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  domain            String
+  issueDate         DateTime          @default(now())
+  completionDate    DateTime
+  verificationUrl   String
+  qrCodeData        String
+  status            CertificateStatus @default(VALID)
+  templateName      String            @default("IVR_EXCELLENCE_v1")
+  issuedBy          String            @default("IVR Academic Board & CTO")
+  createdAt         DateTime          @default(now())
+}
+
+model Announcement {
+  id             String   @id @default(uuid())
+  title          String
+  content        String
+  targetAudience String   @default("ALL")
+  batchId        String?
+  batch          Batch?   @relation(fields: [batchId], references: [id])
+  priority       String   @default("NORMAL")
+  channels       String   @default("IN_APP,EMAIL")
+  authorId       String
+  createdAt      DateTime @default(now())
+}
+
+model Conversation {
+  id         String   @id @default(uuid())
+  mentorId   String
+  mentor     MentorProfile @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  messages   Message[]
+
+  @@unique([mentorId, studentId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  attachmentUrl  String?
+  attachmentType String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model PaymentOrder {
+  id                String        @id @default(uuid())
+  orderId           String        @unique
+  studentId         String
+  student           StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount            Float
+  currency          String        @default("INR")
+  feeType           String        @default("PROGRAM_FEE")
+  status            PaymentStatus @default(PENDING)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  receiptNumber     String?
+  createdAt         DateTime      @default(now())
+
+  transactions      PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentId   String
+  signature   String?
+  status      String
+  method      String   @default("UPI")
+  amount      Float
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String
+  userRole  String
+  action    String
+  module    String
+  details   String
+  ipAddress String?
+  timestamp DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model SystemSettings {
+  id                    String   @id @default("ivr-global-settings")
+  internshipDurationDays Int     @default(60)
+  minAttendancePercent  Float    @default(80.0)
+  minProjectScore       Int      @default(70)
+  registrationFeeINR    Float    @default(499.0)
+  programFeeINR         Float    @default(4999.0)
+  currency              String   @default("INR")
+  razorpayKeyId         String   @default("rzp_test_ivr_enterprise")
+  contactEmail          String   @default("admissions@ivrenterprise.com")
+  contactPhone          String   @default("+91 8143177907")
+  officeAddress         String   @default("Remote-First Operations (Pan-India)")
+  updatedAt             DateTime @updatedAt
+}

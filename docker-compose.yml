@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # Next.js Application Service
+  ivr-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ivr-enterprise-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://ivr_admin:IVR_Secure_Pass2026!@postgres:5432/ivr_internship_db?schema=public
+      - JWT_SECRET=ivr_enterprise_jwt_super_secret_key_production_2026_x89a
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_ivr2026enterprise
+      - RAZORPAY_KEY_SECRET=sec_ivr_live_razorpay_secret
+      - AWS_REGION=ap-south-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ivr-internal-network
+
+  # Production-Grade PostgreSQL 16
+  postgres:
+    image: postgres:16-alpine
+    container_name: ivr-enterprise-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=ivr_admin
+      - POSTGRES_PASSWORD=IVR_Secure_Pass2026!
+      - POSTGRES_DB=ivr_internship_db
+    volumes:
+      - ivr_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivr_admin -d ivr_internship_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ivr-internal-network
+
+  # Redis for Caching & Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: ivr-enterprise-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ivr_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ivr-internal-network
+
+volumes:
+  ivr_postgres_data:
+    driver: local
+  ivr_redis_data:
+    driver: local
+
+networks:
+  ivr-internal-network:
+    driver: bridge
