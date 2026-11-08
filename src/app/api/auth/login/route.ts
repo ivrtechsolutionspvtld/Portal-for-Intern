@@ -60,11 +60,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    // Update lastLogin timestamp
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() },
-    });
+    // Update lastLogin timestamp safely (non-blocking)
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() },
+      });
+    } catch (updateErr) {
+      console.warn('Non-blocking: could not update lastLogin timestamp', updateErr);
+    }
 
     // Version A: Automatic Portal Login Attendance for Students
     if (user.role === 'STUDENT' && user.studentProfile) {
@@ -175,8 +179,9 @@ export async function POST(req: Request) {
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error during authentication' }, { status: 500 });
+    const errorMessage = error?.message || 'Internal server error during authentication';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

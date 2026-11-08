@@ -13,6 +13,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'STUDENT' | 'MENTOR' | null>(null);
+
+  const selectRole = (role: 'ADMIN' | 'STUDENT' | 'MENTOR') => {
+    setSelectedRole(role);
+    setError('');
+  };
+
+  const getEmailPlaceholder = () => {
+    if (selectedRole === 'STUDENT') return 'student@college.edu';
+    if (selectedRole === 'MENTOR') return 'mentor@ivrtechsolution.in';
+    if (selectedRole === 'ADMIN') return 'admin@ivrtechsolution.in';
+    return 'name@example.com';
+  };
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -23,35 +36,21 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Authentication failed. Please verify credentials.');
       } else {
-        router.push(data.redirectUrl || '/admin');
+        // Use hard navigation so that HTTP-only auth cookies are committed and sent cleanly
+        window.location.href = data.redirectUrl || '/admin';
       }
     } catch {
       setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const selectAdminPreset = () => {
-    setEmail('admin@ivrtechsolution.in');
-    setPassword('Admin@IVR2026!');
-  };
-
-  const selectDemoStudentPreset = () => {
-    setEmail('rahul.demo@ivrtechsolution.in');
-    setPassword('StudentDemo@2026!');
-  };
-
-  const selectDemoMentorPreset = () => {
-    setEmail('arjun.demo@ivrtechsolution.in');
-    setPassword('MentorDemo@2026!');
   };
 
   return (
@@ -89,16 +88,23 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Official Email</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">Official Email</label>
+                {selectedRole && (
+                  <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wide">
+                    {selectedRole} Mode
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   required
-                  placeholder="admin@ivrtechsolution.in"
+                  placeholder={getEmailPlaceholder()}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#7C3AED] focus:outline-none"
+                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#7C3AED] focus:outline-none transition-all"
                 />
               </div>
             </div>
@@ -137,32 +143,44 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Fast-Fill Credentials for Evaluation */}
+          {/* Role Selection Console */}
           <div className="mt-6 pt-5 border-t border-slate-100 space-y-2">
             <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-              Evaluation & Demo Access:
+              Portal Roles:
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={selectAdminPreset}
-                className="text-[11px] px-2.5 py-1 bg-purple-50 text-[#5B21B6] hover:bg-purple-100 rounded-md font-semibold border border-purple-200 transition-colors"
+                onClick={() => selectRole('ADMIN')}
+                className={`text-[11px] px-2.5 py-1 rounded-md font-semibold border transition-all ${
+                  selectedRole === 'ADMIN'
+                    ? 'bg-purple-100 text-[#5B21B6] border-purple-400 ring-2 ring-purple-300 shadow-sm'
+                    : 'bg-purple-50 text-[#5B21B6] hover:bg-purple-100 border-purple-200'
+                }`}
               >
-                Fill Admin
+                Admin
               </button>
               <button
                 type="button"
-                onClick={selectDemoStudentPreset}
-                className="text-[11px] px-2.5 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-md font-semibold border border-emerald-200 transition-colors"
+                onClick={() => selectRole('STUDENT')}
+                className={`text-[11px] px-2.5 py-1 rounded-md font-semibold border transition-all ${
+                  selectedRole === 'STUDENT'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400 ring-2 ring-emerald-300 shadow-sm'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200'
+                }`}
               >
-                Fill Demo Student (Rahul)
+                Student
               </button>
               <button
                 type="button"
-                onClick={selectDemoMentorPreset}
-                className="text-[11px] px-2.5 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 rounded-md font-semibold border border-blue-200 transition-colors"
+                onClick={() => selectRole('MENTOR')}
+                className={`text-[11px] px-2.5 py-1 rounded-md font-semibold border transition-all ${
+                  selectedRole === 'MENTOR'
+                    ? 'bg-blue-100 text-blue-900 border-blue-400 ring-2 ring-blue-300 shadow-sm'
+                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border-blue-200'
+                }`}
               >
-                Fill Demo Mentor (Arjun)
+                Mentor
               </button>
             </div>
           </div>
