@@ -209,7 +209,7 @@ export async function POST(req: Request) {
         data: {
           userId: admin.id,
           title: 'New Student Registration Pending Approval',
-          message: `${name} has applied for ${domain} (${college || 'Student'}). Please review in Account Approvals.`,
+          message: `${name} has applied (${college || 'Student'}). Please review in Account Approvals.`,
           type: 'INFO',
           link: '/admin/approvals',
         },
@@ -222,7 +222,7 @@ export async function POST(req: Request) {
       userRole: 'STUDENT',
       action: 'STUDENT_REGISTRATION_SUBMITTED',
       module: 'REGISTRATION',
-      details: `Student registration submitted by ${user.name} (${studentId}, ${domain}). Status set to PENDING_APPROVAL.`,
+      details: `Student registration submitted by ${user.name} (${studentId}). Status set to PENDING_APPROVAL.`,
     });
 
     // Trigger transactional email
@@ -233,7 +233,7 @@ export async function POST(req: Request) {
       variables: {
         name: user.name,
         refNumber: studentId,
-        domain: domain,
+        domain: 'Pending Course Allocation',
       },
     });
 

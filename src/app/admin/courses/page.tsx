@@ -311,7 +311,7 @@ export default function AdminCoursesPage() {
                       <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
                         {course.department || 'Software Development'}
                       </span>
-                      <Badge variant={course.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                      <Badge variant={course.status === 'ACTIVE' ? 'success' : 'default'}>
                         {course.status || 'ACTIVE'}
                       </Badge>
                       <span className="text-xs text-slate-400 font-medium">

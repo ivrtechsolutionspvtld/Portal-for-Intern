@@ -369,7 +369,7 @@ export default function StudentAttendancePage() {
                               ? 'warning'
                               : r.status === 'ABSENT'
                               ? 'danger'
-                              : 'neutral'
+                              : 'default'
                           }
                         >
                           {r.status}

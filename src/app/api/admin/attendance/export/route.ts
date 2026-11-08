@@ -53,7 +53,7 @@ export async function GET(req: Request) {
       details: `Exported ${records.length} attendance records to Excel spreadsheet.`,
     });
 
-    return new Response(excelBuffer, {
+    return new Response(new Uint8Array(excelBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

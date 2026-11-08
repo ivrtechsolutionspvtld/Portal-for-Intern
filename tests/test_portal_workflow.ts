@@ -87,7 +87,7 @@ async function testWorkflow() {
   }
 
   // Verify that PENDING_APPROVAL users are blocked from login
-  const isEligibleToLogin = regUser.status === 'ACTIVE';
+  const isEligibleToLogin = (regUser.status as string) === 'ACTIVE';
   console.log(`   ✔ Login eligibility for pending user: ${isEligibleToLogin} (Expected: false)`);
   if (isEligibleToLogin) {
     throw new Error('❌ Pending user must NOT be permitted to log in!');
