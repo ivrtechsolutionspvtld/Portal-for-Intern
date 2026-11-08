@@ -14,6 +14,23 @@ jobs:
   validate-and-test:
     name: Code Quality & Automated Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: ivrenterprise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: "postgresql://postgres:password@localhost:5432/ivrenterprise?schema=public"
+      JWT_SECRET: "ivr_enterprise_jwt_super_secret_key_production_2026_x89a"
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@v4
@@ -34,9 +51,6 @@ jobs:
 
       - name: Run Build Typecheck
         run: npm run build
-        env:
-          DATABASE_URL: "file:./dev.db"
-          JWT_SECRET: "ivr_enterprise_jwt_super_secret_key_production_2026_x89a"
 
       - name: Execute End-to-End Verification Suite
         run: npx jiti tests/test_version3_workflows.ts
