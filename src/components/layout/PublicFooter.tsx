@@ -15,9 +15,9 @@ export default function PublicFooter() {
             <p className="text-sm text-slate-300 max-w-sm leading-relaxed mt-3">
               {COMPANY_INFO.name} delivers premier industry-immersed internship programs, technical mentorship, and high-performance talent development.
             </p>
-            <div className="pt-2 text-xs text-purple-200/80 space-y-1.5 font-mono">
-              <div>CIN: {COMPANY_INFO.cin}</div>
-              <div>ISO/IEC 27001:2022 Certified Information Security</div>
+            <div className="pt-2 text-xs text-purple-200/80 space-y-1">
+              <div>Technology Internship & Skill Development Platform</div>
+              <div className="text-purple-300/60">Digital Personal Data Protection (DPDP) Act Compliant</div>
             </div>
           </div>
 

@@ -30,13 +30,17 @@ export async function GET() {
 
       return {
         '#': index + 1,
+        'Student ID': s.studentId || `IVR-STU-${s.id.slice(0, 6).toUpperCase()}`,
         'Full Name': s.user.name,
         'Email Address': s.user.email,
         'Phone Number': s.user.phone || 'N/A',
         'Account Status': s.user.status,
         'College / University': s.college,
         'Department': s.department,
+        'Degree': s.degree || 'B.Tech',
+        'Academic Year': s.academicYear || 'Final Year',
         'Graduation Year': s.graduationYear,
+        'Registration Number': s.regNumber || 'N/A',
         'Domain': s.domain,
         'Batch': s.batch?.name || 'Unassigned',
         'Assigned Mentor': s.mentor?.user.name || 'Unassigned',

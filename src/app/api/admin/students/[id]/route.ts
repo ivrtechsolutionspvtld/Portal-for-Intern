@@ -41,12 +41,22 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       return await tx.studentProfile.update({
         where: { id: studentProfileId },
         data: {
+          studentId: data.studentId !== undefined ? data.studentId : existingStudent.studentId,
           college: data.college !== undefined ? data.college : existingStudent.college,
           department: data.department !== undefined ? data.department : existingStudent.department,
+          degree: data.degree !== undefined ? data.degree : existingStudent.degree,
+          academicYear: data.academicYear !== undefined ? data.academicYear : existingStudent.academicYear,
           graduationYear: data.graduationYear !== undefined ? parseInt(data.graduationYear, 10) : existingStudent.graduationYear,
+          regNumber: data.regNumber !== undefined ? data.regNumber : existingStudent.regNumber,
+          dob: data.dob !== undefined ? (data.dob ? new Date(data.dob) : null) : existingStudent.dob,
+          address: data.address !== undefined ? data.address : existingStudent.address,
           domain: data.domain !== undefined ? data.domain : existingStudent.domain,
+          startDate: data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : existingStudent.startDate,
+          endDate: data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : existingStudent.endDate,
           batchId: data.batchId !== undefined ? data.batchId || null : existingStudent.batchId,
           mentorId: data.mentorId !== undefined ? data.mentorId || null : existingStudent.mentorId,
+          resumeUrl: data.resumeUrl !== undefined ? data.resumeUrl : existingStudent.resumeUrl,
+          bio: data.bio !== undefined ? data.bio : existingStudent.bio,
           cgpa: data.cgpa !== undefined ? parseFloat(data.cgpa) : existingStudent.cgpa,
         },
         include: {

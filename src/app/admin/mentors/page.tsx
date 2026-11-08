@@ -20,6 +20,7 @@ import {
   CalendarCheck,
   Building2,
   Award,
+  Download,
 } from 'lucide-react';
 
 export default function AdminMentorsPage() {
@@ -194,13 +195,23 @@ export default function AdminMentorsPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsAddOpen(true)}
-            className="btn-ivr-primary text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Provision Faculty Mentor
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/api/admin/mentors/export"
+              download
+              className="btn-ivr-secondary text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export Mentors (Excel)
+            </a>
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="btn-ivr-primary text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Provision Faculty Mentor
+            </button>
+          </div>
         </div>
 
         {/* Search & Filter Bar */}
@@ -251,8 +262,16 @@ export default function AdminMentorsPage() {
                           {m.name?.charAt(0) || 'M'}
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 text-sm leading-tight">{m.name}</h3>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-slate-900 text-sm leading-tight">{m.name}</h3>
+                            {m.isDemo && (
+                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded">
+                                DEMO
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[11px] text-[#6D28D9] font-medium block truncate max-w-[170px]">{m.designation}</span>
+                          <span className="text-[10px] font-mono text-slate-400 block">{m.mentorId || 'IVR-MEN-DEMO'}</span>
                         </div>
                       </div>
                       <Badge variant={m.status === 'ACTIVE' ? 'success' : 'default'}>{m.status}</Badge>
@@ -584,6 +603,14 @@ export default function AdminMentorsPage() {
 
             <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
               <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Mentor Identifier</span>
+                <span className="font-mono font-bold text-[#5B21B6]">{selectedMentor.mentorId || 'IVR-MEN-PENDING'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Employee ID</span>
+                <span className="font-mono text-slate-800">{selectedMentor.employeeId || 'N/A'}</span>
+              </div>
+              <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Email</span>
                 <span className="font-mono text-slate-800">{selectedMentor.email}</span>
               </div>
@@ -594,6 +621,14 @@ export default function AdminMentorsPage() {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Department</span>
                 <span className="text-slate-800">{selectedMentor.department}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Experience</span>
+                <span className="text-slate-800">{selectedMentor.experience || '3 Years'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Assigned Program Track</span>
+                <span className="font-bold text-[#6D28D9]">{selectedMentor.assignedProgram || 'General Track'}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Status</span>

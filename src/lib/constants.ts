@@ -117,7 +117,6 @@ export const COMPANY_INFO = {
   shortName: 'IVR',
   tagline: 'Building Skills. Creating Opportunities. Shaping Careers.',
   established: 2018,
-  cin: 'U72900MH2018PTC318920',
   headquarters: 'Remote-First Operations (Pan-India)',
   regionalOffice: 'Virtual Fellowship & Engineering Labs',
   supportEmail: 'admin@ivrtechsolution.in',

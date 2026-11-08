@@ -44,6 +44,16 @@ export default function LoginPage() {
     setPassword('Admin@IVR2026!');
   };
 
+  const selectDemoStudentPreset = () => {
+    setEmail('rahul.demo@ivrtechsolution.in');
+    setPassword('StudentDemo@2026!');
+  };
+
+  const selectDemoMentorPreset = () => {
+    setEmail('arjun.demo@ivrtechsolution.in');
+    setPassword('MentorDemo@2026!');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1E1B4B] via-[#3B0764] to-[#4C1D95] flex flex-col justify-between p-4 sm:p-8 text-slate-100 antialiased">
       {/* Top Branding Bar */}
@@ -127,27 +137,56 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Admin Fast-Fill */}
-          <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-400">Administrator Credentials:</span>
-            <button
-              type="button"
-              onClick={selectAdminPreset}
-              className="text-[#6D28D9] hover:underline font-semibold"
-            >
-              Fill Admin Email
-            </button>
+          {/* Fast-Fill Credentials for Evaluation */}
+          <div className="mt-6 pt-5 border-t border-slate-100 space-y-2">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              Evaluation & Demo Access:
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={selectAdminPreset}
+                className="text-[11px] px-2.5 py-1 bg-purple-50 text-[#5B21B6] hover:bg-purple-100 rounded-md font-semibold border border-purple-200 transition-colors"
+              >
+                Fill Admin
+              </button>
+              <button
+                type="button"
+                onClick={selectDemoStudentPreset}
+                className="text-[11px] px-2.5 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-md font-semibold border border-emerald-200 transition-colors"
+              >
+                Fill Demo Student (Rahul)
+              </button>
+              <button
+                type="button"
+                onClick={selectDemoMentorPreset}
+                className="text-[11px] px-2.5 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 rounded-md font-semibold border border-blue-200 transition-colors"
+              >
+                Fill Demo Mentor (Arjun)
+              </button>
+            </div>
           </div>
 
-          <div className="mt-5 text-center text-[11px] text-slate-400">
-            Looking for internship admissions?{' '}
+          {/* Registration link */}
+          <div className="mt-5 pt-4 border-t border-slate-100 text-center text-xs">
+            <span className="text-slate-500">Need an account? </span>
+            <Link
+              href="/register"
+              className="font-bold text-[#6D28D9] hover:underline"
+            >
+              Register for Student or Mentor Access &rarr;
+            </Link>
+          </div>
+
+          <div className="mt-3 text-center text-[11px] text-slate-400">
+            Admissions via Google Form:{' '}
             <a
               href={APPLICATION_GOOGLE_FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold text-[#6D28D9] hover:underline inline-flex items-center gap-0.5"
             >
-              Apply via Official Google Form
+              Open Form
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>

@@ -151,7 +151,7 @@ export default function StudentOverviewPage() {
               <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between text-xs">
                 <div>
                   <span className="font-bold text-slate-800 block">Attendance Requirement</span>
-                  <span className="text-[11px] text-slate-500">Benchmark: Minimum 80% Validated</span>
+                  <span className="text-[11px] text-slate-500">Benchmark: Minimum 75% Validated</span>
                 </div>
                 <div className="text-right">
                   <span className="font-mono font-bold text-slate-800">
@@ -161,7 +161,7 @@ export default function StudentOverviewPage() {
                     {data?.certificateEligibility?.criteria?.attendance?.met ? (
                       <Badge variant="success">MET</Badge>
                     ) : (
-                      <Badge variant="warning">BELOW 80%</Badge>
+                      <Badge variant="warning">BELOW 75%</Badge>
                     )}
                   </div>
                 </div>
@@ -181,25 +181,6 @@ export default function StudentOverviewPage() {
                       <Badge variant="success">MET</Badge>
                     ) : (
                       <Badge variant="warning">IN PROGRESS</Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-slate-800 block">Program Fee Settlement</span>
-                  <span className="text-[11px] text-slate-500">Benchmark: Fully Settled Invoice</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-slate-800">
-                    {data?.certificateEligibility?.criteria?.feePayment?.current || 'Pending'}
-                  </span>
-                  <div>
-                    {data?.certificateEligibility?.criteria?.feePayment?.met ? (
-                      <Badge variant="success">PAID</Badge>
-                    ) : (
-                      <Badge variant="warning">PENDING</Badge>
                     )}
                   </div>
                 </div>

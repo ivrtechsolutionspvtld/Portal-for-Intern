@@ -17,6 +17,9 @@ export async function GET(req: Request) {
     const batchId = searchParams.get('batchId') || '';
     const status = searchParams.get('status') || '';
 
+    const department = searchParams.get('department') || '';
+    const college = searchParams.get('college') || '';
+
     const whereClause: Record<string, unknown> = {};
 
     if (domain) {
@@ -28,13 +31,22 @@ export async function GET(req: Request) {
     if (status) {
       whereClause.user = { status };
     }
+    if (department) {
+      whereClause.department = { contains: department };
+    }
+    if (college) {
+      whereClause.college = { contains: college };
+    }
 
     if (search) {
       whereClause.OR = [
         { user: { name: { contains: search } } },
         { user: { email: { contains: search } } },
+        { user: { phone: { contains: search } } },
         { college: { contains: search } },
         { department: { contains: search } },
+        { studentId: { contains: search } },
+        { regNumber: { contains: search } },
       ];
     }
 
@@ -49,6 +61,10 @@ export async function GET(req: Request) {
             phone: true,
             avatar: true,
             status: true,
+            isDemo: true,
+            approvalNotes: true,
+            approvedAt: true,
+            approvedBy: true,
             createdAt: true,
           },
         },
@@ -83,19 +99,29 @@ export async function GET(req: Request) {
       return {
         id: s.id,
         userId: s.userId,
+        studentId: s.studentId || `IVR-STU-${s.id.slice(0, 6).toUpperCase()}`,
         name: s.user.name,
         email: s.user.email,
         phone: s.user.phone,
         avatar: s.user.avatar,
         status: s.user.status,
+        isDemo: s.user.isDemo,
         college: s.college,
         department: s.department,
+        degree: s.degree || 'B.Tech',
+        academicYear: s.academicYear || 'Final Year',
         graduationYear: s.graduationYear,
+        regNumber: s.regNumber,
+        dob: s.dob,
+        address: s.address,
         domain: s.domain,
+        startDate: s.startDate,
+        endDate: s.endDate,
         cgpa: s.cgpa,
+        bio: s.bio,
         resumeUrl: s.resumeUrl,
         batch: s.batch ? { id: s.batch.id, name: s.batch.name } : null,
-        mentor: s.mentor ? { id: s.mentor.id, name: s.mentor.user.name } : null,
+        mentor: s.mentor ? { id: s.mentor.id, name: s.mentor.user.name, email: s.mentor.user.email } : null,
         attendancePercent,
         completedProjects,
         hasCertificate: !!s.certificate,
@@ -122,12 +148,23 @@ export async function POST(req: Request) {
       name,
       email,
       phone,
+      studentId: customStudentId,
       college,
       department,
+      degree,
+      academicYear,
       graduationYear,
+      regNumber,
+      dob,
+      address,
       domain,
+      startDate,
+      endDate,
       batchId,
       mentorId,
+      resumeUrl,
+      status = 'ACTIVE',
+      isDemo = false,
       password,
     } = await req.json();
 
@@ -144,6 +181,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `User with email ${email} already exists.` }, { status: 409 });
     }
 
+    const year = new Date().getFullYear();
+    let assignedStudentId = customStudentId?.trim();
+    if (!assignedStudentId) {
+      assignedStudentId = `IVR-STU-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+      let isUnique = false;
+      while (!isUnique) {
+        const found = await prisma.studentProfile.findUnique({ where: { studentId: assignedStudentId } });
+        if (!found) isUnique = true;
+        else assignedStudentId = `IVR-STU-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+    }
+
     const plainPassword = password || 'Student@IVR2026!';
     const passwordHash = await hashPassword(plainPassword);
 
@@ -156,19 +205,31 @@ export async function POST(req: Request) {
           phone: phone?.trim() || null,
           passwordHash,
           role: 'STUDENT',
-          status: 'ACTIVE',
+          status: status || 'ACTIVE',
+          isDemo: !!isDemo,
+          approvedAt: status === 'ACTIVE' ? new Date() : null,
+          approvedBy: status === 'ACTIVE' ? adminUser.email : null,
         },
       });
 
       const profile = await tx.studentProfile.create({
         data: {
           userId: user.id,
+          studentId: assignedStudentId,
           college: college.trim(),
           department: department.trim(),
+          degree: degree?.trim() || 'B.Tech',
+          academicYear: academicYear?.trim() || 'Final Year',
           graduationYear: parseInt(graduationYear, 10),
+          regNumber: regNumber?.trim() || null,
+          dob: dob ? new Date(dob) : null,
+          address: address?.trim() || null,
           domain,
+          startDate: startDate ? new Date(startDate) : new Date(),
+          endDate: endDate ? new Date(endDate) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
           batchId: batchId || null,
           mentorId: mentorId || null,
+          resumeUrl: resumeUrl?.trim() || null,
         },
       });
 

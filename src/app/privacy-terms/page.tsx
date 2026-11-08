@@ -40,7 +40,7 @@ export default function PrivacyTermsPage() {
             <div>
               <h2 className="text-xl font-bold text-slate-900 mb-3">1. Scope and Applicability</h2>
               <p className="text-xs sm:text-sm text-slate-600">
-                This Privacy Notice applies to all digital platforms, portals, application forms, and web interfaces operated by {COMPANY_INFO.name} ({COMPANY_INFO.cin}). It governs the collection, processing, storage, and erasure of personal data provided by collegiate fellows, faculty mentors, and public applicants.
+                This Privacy Notice applies to all digital platforms, portals, application forms, and web interfaces operated by {COMPANY_INFO.name}. It governs the collection, processing, storage, and erasure of personal data provided by collegiate fellows, faculty mentors, and public applicants.
               </p>
             </div>
 
@@ -86,7 +86,7 @@ export default function PrivacyTermsPage() {
 
             <div className="pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
               <span>{COMPANY_INFO.name}</span>
-              <span>ISO 27001 Certified Security</span>
+              <span>Encrypted & DPDP Act Compliant</span>
             </div>
           </div>
         </div>

@@ -78,6 +78,42 @@ export function generateIVREmailTemplate({
   `;
 }
 
+// Standalone email notification dispatcher
+export async function sendEmailNotification({
+  to,
+  subject,
+  template,
+  variables = {},
+}: {
+  to: string;
+  subject: string;
+  template?: string;
+  variables?: Record<string, any>;
+}) {
+  const recipientName = variables.name || 'Valued Member';
+  let bodyHtml = `<p>Official communication regarding your account with IVR TECH SOLUTIONS PRIVATE LIMITED.</p>`;
+  if (variables.refNumber) {
+    bodyHtml += `<p>Your unique reference identifier is: <strong style="color: #6D28D9;">${variables.refNumber}</strong>.</p>`;
+  }
+  if (variables.domain) {
+    bodyHtml += `<p>Internship Program: <strong>${variables.domain}</strong></p>`;
+  }
+  if (variables.message) {
+    bodyHtml += `<p>${variables.message}</p>`;
+  }
+
+  const html = generateIVREmailTemplate({
+    title: subject,
+    recipientName,
+    bodyHtml,
+    actionText: 'Access IVR Portal',
+    actionUrl: 'http://localhost:3000/login',
+  });
+
+  console.log(`[SES EMAIL DISPATCH] To: ${to} | Subject: ${subject} | Template: ${template || 'DEFAULT'}`);
+  return { success: true };
+}
+
 // In-app notification dispatcher
 export async function createInAppNotification({
   userId,

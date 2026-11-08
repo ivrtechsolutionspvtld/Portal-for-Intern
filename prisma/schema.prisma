@@ -13,9 +13,15 @@ model User {
   passwordHash  String
   name          String
   role          String       @default("STUDENT") // ADMIN, MENTOR, STUDENT
+  adminId       String?      @unique
   phone         String?
   avatar        String?
-  status        String       @default("ACTIVE")  // ACTIVE, INACTIVE, SUSPENDED
+  status        String       @default("PENDING_APPROVAL")  // PENDING_APPROVAL, ACTIVE, REJECTED, DEACTIVATED, INFO_REQUESTED
+  isDemo        Boolean      @default(false)
+  approvalNotes String?
+  approvedAt    DateTime?
+  approvedBy    String?
+  lastLogin     DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -28,12 +34,25 @@ model User {
 
 model StudentProfile {
   id              String      @id @default(uuid())
+  studentId       String?     @unique
   userId          String      @unique
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   college         String
   department      String
+  degree          String?
+  academicYear    String?
   graduationYear  Int
+  regNumber       String?
+  dob             DateTime?
+  address         String?
   domain          String
+  courseId        String?
+  course          Course?     @relation(fields: [courseId], references: [id])
+  duration        String?
+  startDate       DateTime?
+  endDate         DateTime?
+  allocatedBy     String?
+  allocatedAt     DateTime?
   batchId         String?
   batch           Batch?      @relation(fields: [batchId], references: [id])
   mentorId        String?
@@ -53,11 +72,15 @@ model StudentProfile {
 
 model MentorProfile {
   id              String      @id @default(uuid())
+  mentorId        String?     @unique
+  employeeId      String?     @unique
   userId          String      @unique
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   designation     String
   department      String
   expertise       String
+  experience      String?
+  assignedProgram String?
   bio             String?
   maxStudents     Int         @default(30)
   
@@ -106,15 +129,21 @@ model Batch {
 
 model Course {
   id            String    @id @default(uuid())
+  code          String?   @unique
   title         String
   domain        String
   description   String
+  department    String?   @default("Software Development")
   durationWeeks Int       @default(8)
   level         String    @default("Intermediate")
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  syllabus      String?
   thumbnail     String?
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   modules       Module[]
+  students      StudentProfile[]
 }
 
 model Module {
@@ -158,16 +187,21 @@ model AttendanceSession {
 }
 
 model AttendanceRecord {
-  id          String           @id @default(uuid())
-  studentId   String
-  student     StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  batchId     String
-  date        DateTime
-  status      String           @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED
-  method      String           @default("MANUAL")  // MANUAL, QR_SCAN
-  markedBy    String?
-  notes       String?
-  createdAt   DateTime         @default(now())
+  id               String           @id @default(uuid())
+  studentId        String
+  student          StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  batchId          String?
+  date             DateTime
+  status           String           @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED
+  method           String           @default("MANUAL")  // MANUAL, QR_SCAN, AUTOMATIC_LOGIN, ADMIN_MANUAL
+  checkInTime      DateTime?
+  checkOutTime     DateTime?
+  durationMinutes  Int?
+  markedBy         String?
+  notes            String?
+  correctionReason String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@unique([studentId, date])
 }
@@ -317,16 +351,23 @@ model Notification {
 }
 
 model SystemSettings {
-  id                    String   @id @default("ivr-global-settings")
-  internshipDurationDays Int     @default(60)
-  minAttendancePercent  Float    @default(80.0)
-  minProjectScore       Int      @default(70)
-  registrationFeeINR    Float    @default(499.0)
-  programFeeINR         Float    @default(4999.0)
-  currency              String   @default("INR")
-  razorpayKeyId         String   @default("rzp_test_ivr_enterprise")
-  contactEmail          String   @default("admissions@ivrenterprise.com")
-  contactPhone          String   @default("+91 8143177907")
-  officeAddress         String   @default("Remote-First Operations (Pan-India)")
-  updatedAt             DateTime @updatedAt
+  id                         String   @id @default("ivr-global-settings")
+  internshipDurationDays      Int      @default(60)
+  minAttendancePercent       Float    @default(75.0)
+  minProjectScore            Int      @default(70)
+  attendanceMode             String   @default("AUTOMATIC") // AUTOMATIC (Version A), MANUAL (Version B)
+  workHoursStart             String   @default("09:30")
+  workHoursEnd               String   @default("18:30")
+  lateArrivalGraceTime       String   @default("10:00")
+  minSessionDurationMinutes  Int      @default(30)
+  enableAttendanceCorrections Boolean @default(true)
+  registrationFeeINR         Float    @default(499.0)
+  programFeeINR              Float    @default(4999.0)
+  currency                   String   @default("INR")
+  razorpayKeyId              String   @default("rzp_test_ivr2026enterprise")
+  contactEmail               String   @default("admin@ivrtechsolution.in")
+  contactPhone               String   @default("+91 8143177907")
+  officeAddress              String   @default("Remote-First Operations (Pan-India)")
+  mandatoryStudentFields      String?  @default("name,email,phone,college,department,graduationYear")
+  updatedAt                  DateTime @updatedAt
 }

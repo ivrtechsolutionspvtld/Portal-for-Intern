@@ -325,7 +325,7 @@ export default function AdminStudentsPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by name, email, college..."
+              placeholder="Search by name, email, phone, student ID, college..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
@@ -412,8 +412,19 @@ export default function AdminStudentsPage() {
                             {s.name.charAt(0)}
                           </div>
                           <div>
-                            <div className="font-bold text-slate-900">{s.name}</div>
-                            <div className="text-[11px] text-slate-400 font-mono">{s.email}</div>
+                            <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                              <span>{s.name}</span>
+                              {s.isDemo && (
+                                <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded">
+                                  DEMO
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2">
+                              <span>{s.studentId || 'IVR-STU-DEMO'}</span>
+                              <span>•</span>
+                              <span>{s.email}</span>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -835,14 +846,22 @@ export default function AdminStudentsPage() {
 
             <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Phone</span>
-                <span className="text-slate-800">{selectedStudent.phone || 'N/A'}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Student Identifier</span>
+                <span className="font-mono font-bold text-[#5B21B6]">{selectedStudent.studentId || 'IVR-STU-PENDING'}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Account Status</span>
                 <Badge variant={selectedStudent.status === 'ACTIVE' ? 'success' : 'danger'}>
                   {selectedStudent.status}
                 </Badge>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Phone</span>
+                <span className="text-slate-800">{selectedStudent.phone || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Registration / Roll No</span>
+                <span className="text-slate-800">{selectedStudent.regNumber || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">College</span>
@@ -853,12 +872,20 @@ export default function AdminStudentsPage() {
                 <span className="text-slate-800 font-medium">{selectedStudent.department}</span>
               </div>
               <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Degree & Academic Year</span>
+                <span className="text-slate-800">{selectedStudent.degree || 'B.Tech'} ({selectedStudent.academicYear || 'Final Year'})</span>
+              </div>
+              <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Graduation Year</span>
                 <span className="text-slate-800">{selectedStudent.graduationYear}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Attendance Rate</span>
                 <span className="font-bold text-[#6D28D9]">{selectedStudent.attendancePercent}%</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Approved Deliverables</span>
+                <span className="font-bold text-emerald-700">{selectedStudent.completedProjects} Milestones</span>
               </div>
             </div>
 

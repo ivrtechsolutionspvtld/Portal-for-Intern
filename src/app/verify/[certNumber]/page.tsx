@@ -210,7 +210,7 @@ export default function CertificateVerificationPage() {
 
             {/* Legal Footnote */}
             <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2">
-              <span>IVR TECH SOLUTIONS PRIVATE LIMITED • CIN: U72900MH2018PTC318920</span>
+              <span>IVR TECH SOLUTIONS PRIVATE LIMITED</span>
               <span className="text-emerald-700 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Valid Academic Credential

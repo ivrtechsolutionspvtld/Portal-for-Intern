@@ -5,165 +5,178 @@ import { logAuditEvent } from '@/lib/audit';
 
 export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
-    const adminUser = await getSessionUser();
-    if (!adminUser || adminUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 });
+    const admin = await getSessionUser();
+    if (!admin || admin.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized: Admin privileges required.' }, { status: 403 });
     }
 
-    const params = await props.params;
-    const mentorId = params.id;
+    const { id } = await props.params;
 
     const mentor = await prisma.mentorProfile.findUnique({
-      where: { id: mentorId },
+      where: { id },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            avatar: true,
-            status: true,
-            createdAt: true,
-          },
-        },
+        user: true,
         assignedStudents: {
           include: {
-            user: { select: { name: true, email: true, phone: true } },
+            user: true,
             batch: true,
           },
         },
         batches: true,
+        attendanceSessions: {
+          take: 10,
+          orderBy: { sessionDate: 'desc' },
+        },
       },
     });
 
     if (!mentor) {
-      return NextResponse.json({ error: 'Mentor not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mentor not found in system records.' }, { status: 404 });
     }
 
     return NextResponse.json({ mentor });
-  } catch (error) {
-    console.error('Get mentor error:', error);
-    return NextResponse.json({ error: 'Failed to fetch mentor details' }, { status: 500 });
+  } catch (err: any) {
+    console.error('Mentor fetch detail error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to fetch mentor details.' }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
-    const adminUser = await getSessionUser();
-    if (!adminUser || adminUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 });
+    const admin = await getSessionUser();
+    if (!admin || admin.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized: Admin privileges required.' }, { status: 403 });
     }
 
-    const params = await props.params;
-    const mentorId = params.id;
-    const data = await req.json();
+    const { id } = await props.params;
+    const body = await req.json();
 
     const existingMentor = await prisma.mentorProfile.findUnique({
-      where: { id: mentorId },
+      where: { id },
       include: { user: true },
     });
 
     if (!existingMentor) {
-      return NextResponse.json({ error: 'Mentor not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mentor not found in system records.' }, { status: 404 });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Update User fields
-      if (data.name !== undefined || data.status !== undefined || data.phone !== undefined) {
+      // 1. Update user fields
+      if (body.name || body.status || body.phone || body.avatar) {
         await tx.user.update({
           where: { id: existingMentor.userId },
           data: {
-            name: data.name !== undefined ? data.name : existingMentor.user.name,
-            status: data.status !== undefined ? data.status : existingMentor.user.status,
-            phone: data.phone !== undefined ? data.phone : existingMentor.user.phone,
+            name: body.name !== undefined ? body.name.trim() : existingMentor.user.name,
+            phone: body.phone !== undefined ? body.phone?.trim() : existingMentor.user.phone,
+            status: body.status !== undefined ? body.status : existingMentor.user.status,
+            avatar: body.avatar !== undefined ? body.avatar : existingMentor.user.avatar,
           },
         });
       }
 
-      // Update MentorProfile fields
-      return await tx.mentorProfile.update({
-        where: { id: mentorId },
+      // 2. Update profile fields
+      const profile = await tx.mentorProfile.update({
+        where: { id },
         data: {
-          designation: data.designation !== undefined ? data.designation : existingMentor.designation,
-          department: data.department !== undefined ? data.department : existingMentor.department,
-          expertise: data.expertise !== undefined ? data.expertise : existingMentor.expertise,
-          bio: data.bio !== undefined ? data.bio : existingMentor.bio,
-          maxStudents: data.maxStudents !== undefined ? parseInt(data.maxStudents, 10) : existingMentor.maxStudents,
+          mentorId: body.mentorId !== undefined ? body.mentorId : existingMentor.mentorId,
+          employeeId: body.employeeId !== undefined ? body.employeeId : existingMentor.employeeId,
+          designation: body.designation !== undefined ? body.designation : existingMentor.designation,
+          department: body.department !== undefined ? body.department : existingMentor.department,
+          expertise: body.expertise !== undefined ? body.expertise : existingMentor.expertise,
+          experience: body.experience !== undefined ? body.experience : existingMentor.experience,
+          assignedProgram: body.assignedProgram !== undefined ? body.assignedProgram : existingMentor.assignedProgram,
+          bio: body.bio !== undefined ? body.bio : existingMentor.bio,
+          maxStudents: body.maxStudents !== undefined ? parseInt(body.maxStudents, 10) : existingMentor.maxStudents,
         },
         include: {
           user: true,
-          assignedStudents: true,
+          assignedStudents: { include: { user: true } },
           batches: true,
         },
       });
+
+      // 3. Assign or reassign specific students if provided
+      if (Array.isArray(body.assignStudentIds)) {
+        await tx.studentProfile.updateMany({
+          where: { id: { in: body.assignStudentIds } },
+          data: { mentorId: id },
+        });
+      }
+
+      // 4. Unassign specific students if requested
+      if (Array.isArray(body.unassignStudentIds)) {
+        await tx.studentProfile.updateMany({
+          where: { id: { in: body.unassignStudentIds }, mentorId: id },
+          data: { mentorId: null },
+        });
+      }
+
+      return profile;
     });
 
     await logAuditEvent({
-      userId: adminUser.id,
-      userEmail: adminUser.email,
+      userId: admin.id,
+      userEmail: admin.email,
       userRole: 'ADMIN',
       action: 'MENTOR_UPDATE',
       module: 'MENTOR_MANAGEMENT',
-      details: `Updated mentor profile ${existingMentor.user.email} (Status: ${data.status || existingMentor.user.status})`,
+      details: `Updated mentor ${existingMentor.user.name} (${existingMentor.user.email}). Status: ${body.status || existingMentor.user.status}`,
     });
 
     return NextResponse.json({ success: true, mentor: updated });
-  } catch (error) {
-    console.error('Update mentor error:', error);
-    return NextResponse.json({ error: 'Failed to update mentor profile' }, { status: 500 });
+  } catch (err: any) {
+    console.error('Mentor update error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to update mentor details.' }, { status: 500 });
   }
 }
 
 export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
-    const adminUser = await getSessionUser();
-    if (!adminUser || adminUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 });
+    const admin = await getSessionUser();
+    if (!admin || admin.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized: Admin privileges required.' }, { status: 403 });
     }
 
-    const params = await props.params;
-    const mentorId = params.id;
+    const { id } = await props.params;
 
     const mentor = await prisma.mentorProfile.findUnique({
-      where: { id: mentorId },
-      include: { user: true, assignedStudents: true },
+      where: { id },
+      include: { user: true },
     });
 
     if (!mentor) {
-      return NextResponse.json({ error: 'Mentor not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mentor not found in system records.' }, { status: 404 });
     }
 
-    // Safely unassign any students and batches first
-    await prisma.$transaction(async (tx) => {
-      await tx.studentProfile.updateMany({
-        where: { mentorId },
-        data: { mentorId: null },
-      });
+    // 1. Unlink assigned students so they don't break
+    await prisma.studentProfile.updateMany({
+      where: { mentorId: id },
+      data: { mentorId: null },
+    });
 
-      await tx.batch.updateMany({
-        where: { mentorId },
-        data: { mentorId: null },
-      });
+    // 2. Unlink batches
+    await prisma.batch.updateMany({
+      where: { mentorId: id },
+      data: { mentorId: null },
+    });
 
-      // Delete mentor user record (cascades to mentorProfile)
-      await tx.user.delete({
-        where: { id: mentor.userId },
-      });
+    // 3. Delete user account (cascade deletes mentor profile)
+    await prisma.user.delete({
+      where: { id: mentor.userId },
     });
 
     await logAuditEvent({
-      userId: adminUser.id,
-      userEmail: adminUser.email,
+      userId: admin.id,
+      userEmail: admin.email,
       userRole: 'ADMIN',
       action: 'MENTOR_DELETE',
       module: 'MENTOR_MANAGEMENT',
-      details: `Deleted mentor ${mentor.user.email} (${mentor.user.name})`,
+      details: `Deleted mentor profile and account for ${mentor.user.name} (${mentor.user.email})`,
     });
 
-    return NextResponse.json({ success: true, message: 'Mentor removed successfully' });
-  } catch (error) {
-    console.error('Delete mentor error:', error);
-    return NextResponse.json({ error: 'Failed to delete mentor' }, { status: 500 });
+    return NextResponse.json({ success: true, message: `Mentor ${mentor.user.name} removed successfully.` });
+  } catch (err: any) {
+    console.error('Mentor deletion error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to delete mentor.' }, { status: 500 });
   }
 }

@@ -28,6 +28,13 @@ import {
   UserCheck,
   QrCode,
   Sparkles,
+  UserPlus,
+  BarChart3,
+  FileText,
+  UserCog,
+  MessagesSquare,
+  ShieldCheck,
+  CheckSquare,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -109,38 +116,48 @@ export default function DashboardLayout({ role, children }: DashboardLayoutProps
     }
   };
 
-  // Role-specific nav items
+  // Role-specific nav items (Enterprise Purple Admin Sections & Dedicated Portals)
   const adminNav = [
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-    { label: 'Students Roster', href: '/admin/students', icon: Users },
-    { label: 'Batch Operations', href: '/admin/batches', icon: CalendarCheck },
-    { label: 'Mentors', href: '/admin/mentors', icon: UserCheck },
-    { label: 'Course LMS', href: '/admin/courses', icon: BookOpen },
-    { label: 'Attendance Records', href: '/admin/attendance', icon: CalendarCheck },
-    { label: 'Projects & Reviews', href: '/admin/projects', icon: FolderGit2 },
-    { label: 'Certificates & QR', href: '/admin/certificates', icon: Award },
-    { label: 'Payments & Revenue', href: '/admin/payments', icon: CreditCard },
-    { label: 'Announcements', href: '/admin/announcements', icon: Bell },
-    { label: 'Security Audit Logs', href: '/admin/audit-logs', icon: ShieldAlert },
+    { label: 'Student Management', href: '/admin/students', icon: Users },
+    { label: 'Mentor Management', href: '/admin/mentors', icon: UserCheck },
+    { label: 'Account Approvals', href: '/admin/approvals', icon: UserPlus },
+    { label: 'Course Management', href: '/admin/courses', icon: BookOpen },
+    { label: 'Mentor Allocation', href: '/admin/allocation', icon: UserCheck },
+    { label: 'Attendance Management', href: '/admin/attendance', icon: CheckSquare },
+    { label: 'Internship Programs', href: '/admin/batches', icon: CalendarCheck },
+    { label: 'Applications', href: '/admin/applications', icon: GraduationCap },
+    { label: 'Assignments & Tasks', href: '/admin/projects', icon: FolderGit2 },
+    { label: 'Performance Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Certificates', href: '/admin/certificates', icon: Award },
+    { label: 'Notifications', href: '/admin/announcements', icon: Bell },
+    { label: 'Reports & Exports', href: '/admin/reports', icon: FileSpreadsheet },
+    { label: 'Communication', href: '/admin/communication', icon: MessagesSquare },
+    { label: 'User Roles & Permissions', href: '/admin/roles', icon: UserCog },
+    { label: 'Administrator Management', href: '/admin/administrators', icon: ShieldCheck },
+    { label: 'System Settings', href: '/admin/settings', icon: Settings },
+    { label: 'Audit Logs', href: '/admin/audit-logs', icon: ShieldAlert },
   ];
 
   const mentorNav = [
-    { label: 'Mentor Overview', href: '/mentor', icon: LayoutDashboard },
+    { label: 'Overview & Analytics', href: '/mentor', icon: LayoutDashboard },
+    { label: 'Mentor Profile', href: '/mentor/profile', icon: UserCheck },
     { label: 'Assigned Students', href: '/mentor/students', icon: Users },
-    { label: 'Batch Attendance & QR', href: '/mentor/attendance', icon: QrCode },
-    { label: 'Project Evaluations', href: '/mentor/projects', icon: FolderGit2 },
-    { label: 'Student Messages', href: '/mentor/messages', icon: MessageSquare },
+    { label: 'Attendance & QR Scanner', href: '/mentor/attendance', icon: QrCode },
+    { label: 'Assignments & Reviews', href: '/mentor/projects', icon: FolderGit2 },
+    { label: 'Student Communication', href: '/mentor/messages', icon: MessageSquare },
+    { label: 'Announcements', href: '/mentor/announcements', icon: Bell },
+    { label: 'Cohort Reports', href: '/mentor/reports', icon: FileSpreadsheet },
   ];
 
   const studentNav = [
-    { label: 'Dashboard Overview', href: '/student', icon: LayoutDashboard },
-    { label: 'My Profile', href: '/student/profile', icon: Users },
-    { label: 'Learning Materials', href: '/student/learning', icon: BookOpen },
-    { label: 'Attendance & QR Scan', href: '/student/attendance', icon: QrCode },
-    { label: 'Milestone Projects', href: '/student/projects', icon: FolderGit2 },
+    { label: 'Overview', href: '/student', icon: LayoutDashboard },
+    { label: 'Student Profile', href: '/student/profile', icon: Users },
+    { label: 'Learning Resources', href: '/student/learning', icon: BookOpen },
+    { label: 'Attendance & Daily Check-in', href: '/student/attendance', icon: CalendarCheck },
+    { label: 'Assignments & Tasks', href: '/student/projects', icon: FolderGit2 },
     { label: 'Mentor Messages', href: '/student/messages', icon: MessageSquare },
-    { label: 'Bulletins & Notices', href: '/student/announcements', icon: Bell },
-    { label: 'Fees & Invoices', href: '/student/payments', icon: CreditCard },
+    { label: 'Announcements', href: '/student/announcements', icon: Bell },
     { label: 'Certificate & QR', href: '/student/certificate', icon: Award },
   ];
 
