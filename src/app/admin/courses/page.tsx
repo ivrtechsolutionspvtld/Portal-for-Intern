@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
-import { DOMAINS } from '@/lib/constants';
+import { triggerPortalSync, usePortalSync } from '@/lib/sync';
 import {
   BookOpen,
   Plus,
@@ -22,6 +22,8 @@ import {
   Users,
   Layers,
   Sparkles,
+  UploadCloud,
+  Loader2,
 } from 'lucide-react';
 
 export default function AdminCoursesPage() {
@@ -40,7 +42,7 @@ export default function AdminCoursesPage() {
   const [courseForm, setCourseForm] = useState({
     code: '',
     title: '',
-    domain: DOMAINS[0].name,
+    domain: '',
     description: '',
     department: 'Software Engineering',
     durationWeeks: '8',
@@ -59,6 +61,59 @@ export default function AdminCoursesPage() {
     notes: '',
   });
 
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'video');
+      const res = await fetch('/api/upload/resource', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setModuleForm((prev) => ({ ...prev, videoUrl: data.url }));
+      } else {
+        alert(data.error || 'Failed to upload video');
+      }
+    } catch {
+      alert('Error uploading video');
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'pdf');
+      const res = await fetch('/api/upload/resource', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setModuleForm((prev) => ({ ...prev, pdfUrl: data.url }));
+      } else {
+        alert(data.error || 'Failed to upload PDF');
+      }
+    } catch {
+      alert('Error uploading PDF');
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
   const loadCourses = async () => {
     setLoading(true);
     try {
@@ -67,7 +122,7 @@ export default function AdminCoursesPage() {
       if (selectedDept !== 'ALL') query.set('department', selectedDept);
       if (selectedStatus !== 'ALL') query.set('status', selectedStatus);
 
-      const res = await fetch(`/api/admin/courses?${query.toString()}`);
+      const res = await fetch(`/api/admin/courses?${query.toString()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setCourses(data.courses || []);
@@ -83,20 +138,27 @@ export default function AdminCoursesPage() {
     loadCourses();
   }, [search, selectedDept, selectedStatus]);
 
+  // Real-time synchronization
+  usePortalSync(loadCourses, 5000);
+
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...courseForm,
+        domain: courseForm.domain || courseForm.title,
+      };
       const res = await fetch('/api/admin/courses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CREATE_COURSE', ...courseForm }),
+        body: JSON.stringify({ action: 'CREATE_COURSE', ...payload }),
       });
       if (res.ok) {
         setIsCourseModalOpen(false);
         setCourseForm({
           code: '',
           title: '',
-          domain: DOMAINS[0].name,
+          domain: '',
           description: '',
           department: 'Software Engineering',
           durationWeeks: '8',
@@ -104,7 +166,8 @@ export default function AdminCoursesPage() {
           status: 'ACTIVE',
           syllabus: '',
         });
-        loadCourses();
+        await loadCourses();
+        triggerPortalSync('COURSE_CREATED');
       } else {
         const err = await res.json();
         alert(err.error || 'Failed to create course');
@@ -118,15 +181,20 @@ export default function AdminCoursesPage() {
     e.preventDefault();
     if (!selectedCourse) return;
     try {
+      const payload = {
+        ...courseForm,
+        domain: courseForm.domain || courseForm.title,
+      };
       const res = await fetch(`/api/admin/courses/${selectedCourse.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(courseForm),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setIsEditModalOpen(false);
         setSelectedCourse(null);
-        loadCourses();
+        await loadCourses();
+        triggerPortalSync('COURSE_UPDATED');
       } else {
         const err = await res.json();
         alert(err.error || 'Failed to update course');
@@ -145,7 +213,8 @@ export default function AdminCoursesPage() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-        loadCourses();
+        await loadCourses();
+        triggerPortalSync('COURSE_STATUS_TOGGLED');
       }
     } catch {
       alert('Error toggling course status');
@@ -159,7 +228,8 @@ export default function AdminCoursesPage() {
         method: 'DELETE',
       });
       if (res.ok) {
-        loadCourses();
+        await loadCourses();
+        triggerPortalSync('COURSE_DELETED');
       } else {
         const err = await res.json();
         alert(err.error || 'Failed to delete course');
@@ -236,7 +306,7 @@ export default function AdminCoursesPage() {
               setCourseForm({
                 code: `IVR-CRS-${Date.now().toString(36).toUpperCase()}`,
                 title: '',
-                domain: DOMAINS[0].name,
+                domain: '',
                 description: '',
                 department: 'Software Engineering',
                 durationWeeks: '8',
@@ -684,24 +754,69 @@ export default function AdminCoursesPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Video Resource URL (Optional)</label>
-              <input
-                type="url"
-                placeholder="https://..."
-                value={moduleForm.videoUrl}
-                onChange={(e) => setModuleForm({ ...moduleForm, videoUrl: e.target.value })}
-                className="w-full text-xs p-2 rounded-lg border border-slate-300"
-              />
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Upload Video Lecture (MP4 / WebM)
+              </label>
+              <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={handleVideoUpload}
+                  disabled={uploadingVideo}
+                  className="w-full text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#6D28D9] file:text-white hover:file:bg-[#5B21B6] cursor-pointer"
+                />
+                {uploadingVideo && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#6D28D9] font-medium">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Uploading video file...
+                  </div>
+                )}
+                {moduleForm.videoUrl && !uploadingVideo && (
+                  <div className="flex items-center justify-between text-[11px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                    <span className="truncate max-w-[170px]">Video file linked</span>
+                    <button
+                      type="button"
+                      onClick={() => setModuleForm({ ...moduleForm, videoUrl: '' })}
+                      className="text-rose-600 font-bold hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">PDF Notes / Slides URL (Optional)</label>
-              <input
-                type="url"
-                placeholder="https://..."
-                value={moduleForm.pdfUrl}
-                onChange={(e) => setModuleForm({ ...moduleForm, pdfUrl: e.target.value })}
-                className="w-full text-xs p-2 rounded-lg border border-slate-300"
-              />
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Upload PDF Document / Notes
+              </label>
+              <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handlePdfUpload}
+                  disabled={uploadingPdf}
+                  className="w-full text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#6D28D9] file:text-white hover:file:bg-[#5B21B6] cursor-pointer"
+                />
+                {uploadingPdf && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#6D28D9] font-medium">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Uploading PDF document...
+                  </div>
+                )}
+                {moduleForm.pdfUrl && !uploadingPdf && (
+                  <div className="flex items-center justify-between text-[11px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                    <span className="truncate max-w-[170px]">PDF document linked</span>
+                    <button
+                      type="button"
+                      onClick={() => setModuleForm({ ...moduleForm, pdfUrl: '' })}
+                      className="text-rose-600 font-bold hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

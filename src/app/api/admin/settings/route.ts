@@ -66,6 +66,7 @@ export async function PUT(req: Request) {
         contactPhone: body.contactPhone || undefined,
         officeAddress: body.officeAddress || undefined,
         mandatoryStudentFields: body.mandatoryStudentFields || undefined,
+        googleFormsUrl: body.googleFormsUrl !== undefined ? body.googleFormsUrl.trim() : undefined,
       },
       create: {
         id: 'ivr-global-settings',
@@ -85,6 +86,7 @@ export async function PUT(req: Request) {
         contactPhone: '+91 8143177907',
         officeAddress: 'Remote-First Operations (Pan-India)',
         mandatoryStudentFields: body.mandatoryStudentFields || 'name,email,phone,college,department,graduationYear',
+        googleFormsUrl: body.googleFormsUrl ? body.googleFormsUrl.trim() : 'https://forms.gle/qF6Qx398Lw4b6c3L6',
       },
     });
 

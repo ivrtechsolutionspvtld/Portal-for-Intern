@@ -34,6 +34,7 @@ export default function AdminMentorsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedMentor, setSelectedMentor] = useState<any>(null);
+  const [domains, setDomains] = useState<string[]>([]);
 
   const [addForm, setAddForm] = useState({
     name: '',
@@ -41,7 +42,7 @@ export default function AdminMentorsPage() {
     phone: '',
     designation: 'Principal Solutions Architect',
     department: 'Software Architecture & Cloud Platforms',
-    expertise: 'Distributed Systems, Next.js, Node.js, AWS',
+    expertise: 'Artificial Intelligence & Machine Learning (AIML)',
     bio: '',
     maxStudents: '30',
     password: '',
@@ -50,10 +51,21 @@ export default function AdminMentorsPage() {
   const loadMentors = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/mentors');
+      const [res, domRes] = await Promise.all([
+        fetch('/api/admin/mentors'),
+        fetch('/api/public/domains'),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setMentors(data.mentors || []);
+      }
+      if (domRes.ok) {
+        const dData = await domRes.json();
+        const dList = dData.domains || [];
+        setDomains(dList);
+        if (dList.length > 0 && !addForm.expertise) {
+          setAddForm((prev) => ({ ...prev, expertise: dList[0] }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -97,6 +109,8 @@ export default function AdminMentorsPage() {
     }
   };
 
+  const [editPassword, setEditPassword] = useState('');
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMentor) return;
@@ -114,11 +128,13 @@ export default function AdminMentorsPage() {
           bio: selectedMentor.bio,
           maxStudents: selectedMentor.maxStudents,
           status: selectedMentor.status,
+          password: editPassword.trim() ? editPassword.trim() : undefined,
         }),
       });
 
       if (res.ok) {
         setIsEditOpen(false);
+        setEditPassword('');
         loadMentors();
       } else {
         const err = await res.json();
@@ -405,13 +421,42 @@ export default function AdminMentorsPage() {
               <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
               <input
                 type="text"
+                placeholder="+91 9876543210"
                 value={addForm.phone}
                 onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Max Fellow Capacity</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Account Password *</label>
+              <input
+                type="password"
+                required
+                placeholder="Login password (min 6 chars)"
+                value={addForm.password}
+                onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#7C3AED]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Domain *</label>
+              <select
+                value={addForm.expertise}
+                onChange={(e) => setAddForm({ ...addForm, expertise: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+              >
+                {domains.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Max Intern Capacity</label>
               <input
                 type="number"
                 value={addForm.maxStudents}
@@ -530,7 +575,34 @@ export default function AdminMentorsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Capacity</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Domain</label>
+                <select
+                  value={selectedMentor.expertise || ''}
+                  onChange={(e) => setSelectedMentor({ ...selectedMentor, expertise: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+                >
+                  {domains.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Reset Password (Optional)</label>
+                <input
+                  type="password"
+                  placeholder="Leave blank to keep current"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Max Intern Capacity</label>
                 <input
                   type="number"
                   value={selectedMentor.maxStudents}
@@ -539,7 +611,7 @@ export default function AdminMentorsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Account Status</label>
                 <select
                   value={selectedMentor.status}
                   onChange={(e) => setSelectedMentor({ ...selectedMentor, status: e.target.value })}
@@ -549,16 +621,6 @@ export default function AdminMentorsPage() {
                   <option value="INACTIVE">INACTIVE</option>
                 </select>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Technical Expertise</label>
-              <input
-                type="text"
-                value={selectedMentor.expertise || ''}
-                onChange={(e) => setSelectedMentor({ ...selectedMentor, expertise: e.target.value })}
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
-              />
             </div>
 
             <div>

@@ -60,7 +60,7 @@ export default function AdminReportsPage() {
     {
       id: 'audit',
       title: 'Security & System Audit Telemetry',
-      description: 'Official enterprise audit records documenting administrative approvals, credential changes, and system modifications.',
+      description: 'Official internship audit records documenting administrative approvals, credential changes, and system modifications.',
       icon: ShieldAlert,
       url: '/api/admin/audit-logs?export=true',
       filename: `IVR_AuditLogs_${Date.now()}.csv`,
@@ -74,7 +74,7 @@ export default function AdminReportsPage() {
         {/* Header */}
         <div className="pb-4 border-b border-slate-200">
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Enterprise Reports & Data Exports</h1>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Internship Reports & Data Exports</h1>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-[#5B21B6] border border-purple-200">
               Compliant Data Extraction
             </span>

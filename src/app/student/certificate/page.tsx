@@ -227,7 +227,7 @@ export default function StudentCertificatePage() {
                   {data?.studentName}
                 </div>
                 <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed pt-2">
-                  for outstanding completion of the intensive enterprise-grade internship program in
+                  for outstanding completion of the intensive internship program in
                 </p>
                 <div className="inline-block bg-purple-50 border border-purple-200 px-6 py-2 rounded-xl">
                   <span className="text-sm sm:text-base font-bold text-[#5B21B6] tracking-wide">

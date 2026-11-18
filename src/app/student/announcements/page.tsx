@@ -158,7 +158,7 @@ export default function StudentAnnouncementsPage() {
                         </span>
                       ) : (
                         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          All Fellows Broadcast
+                          All Interns Broadcast
                         </span>
                       )}
                     </div>

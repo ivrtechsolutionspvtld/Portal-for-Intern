@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatCard from '@/components/ui/StatCard';
 import Badge from '@/components/ui/Badge';
+import { usePortalSync } from '@/lib/sync';
 import {
   CalendarCheck,
   BookOpen,
@@ -24,58 +25,74 @@ export default function StudentOverviewPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadStudentOverview() {
-      try {
-        const res = await fetch('/api/student/overview');
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        }
-      } catch (err) {
-        console.error('Failed to load student overview', err);
-      } finally {
-        setLoading(false);
+  const loadStudentOverview = useCallback(async () => {
+    try {
+      const res = await fetch('/api/student/overview', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
       }
+    } catch (err) {
+      console.error('Failed to load student overview', err);
+    } finally {
+      setLoading(false);
     }
-    loadStudentOverview();
   }, []);
+
+  useEffect(() => {
+    loadStudentOverview();
+  }, [loadStudentOverview]);
+
+  // Real-time synchronization: reflects mentor or course assignments instantly
+  usePortalSync(loadStudentOverview, 5000);
 
   return (
     <DashboardLayout role="STUDENT">
       <div className="space-y-6">
         {/* Personalized Welcome Banner */}
         <div className="relative overflow-hidden bg-gradient-to-r from-[#3B0764] via-[#4C1D95] to-[#6D28D9] rounded-2xl p-6 sm:p-8 text-white shadow-lg">
-          <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-purple-200 text-xs font-semibold mb-3 border border-white/10 backdrop-blur-xs">
-              <Sparkles className="w-3.5 h-3.5 text-[#C4B5FD]" />
-              {data?.student?.domain || 'Full-Stack Web Development'} Fellow
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="relative z-10 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-purple-200 text-xs font-semibold mb-3 border border-white/10 backdrop-blur-xs">
+                <Sparkles className="w-3.5 h-3.5 text-[#C4B5FD]" />
+                {data?.student?.course?.title || data?.student?.domain || 'Engineering'} Intern
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+                Welcome Back, {data?.student?.name || 'Intern'}!
+              </h1>
+              <p className="text-xs sm:text-sm text-purple-100 mt-2 leading-relaxed">
+                Enrolled in <strong>{data?.student?.batch?.name || 'Active Cohort'}</strong>. Assigned Mentor:{' '}
+                <strong>{data?.student?.mentor?.name || 'Faculty Mentor'}</strong>.
+              </p>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/student/projects"
+                  className="bg-white text-[#4C1D95] font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm hover:bg-purple-50 transition-colors"
+                >
+                  <FolderGit2 className="w-3.5 h-3.5" />
+                  View Milestone Projects
+                </Link>
+                <Link
+                  href="/student/profile"
+                  className="text-xs font-semibold px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors flex items-center gap-1.5"
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  Student ID & Profile
+                </Link>
+              </div>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Welcome Back, {data?.student?.name || 'Fellow'}!
-            </h1>
-            <p className="text-xs sm:text-sm text-purple-100 mt-2 leading-relaxed">
-              Enrolled in <strong>{data?.student?.batch?.name || 'Active Cohort'}</strong>. Assigned Mentor:{' '}
-              <strong>{data?.student?.mentor?.name || 'Faculty Mentor'}</strong>.
-            </p>
-
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Link
-                href="/student/attendance"
-                className="bg-white text-[#4C1D95] font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm hover:bg-purple-50 transition-colors"
-              >
-                <QrCode className="w-3.5 h-3.5" />
-                Scan Dynamic QR Attendance
-              </Link>
-              <Link
-                href="/student/projects"
-                className="text-xs font-semibold px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors flex items-center gap-1.5"
-              >
-                <FolderGit2 className="w-3.5 h-3.5" />
-                View Milestone Projects
-              </Link>
-            </div>
+            {data?.student?.avatar && (
+              <div className="relative z-10 shrink-0 self-start sm:self-center">
+                <img
+                  src={data.student.avatar}
+                  alt={data.student.name || 'Student'}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-white/30 shadow-lg bg-white/10"
+                />
+              </div>
+            )}
           </div>
         </div>
 

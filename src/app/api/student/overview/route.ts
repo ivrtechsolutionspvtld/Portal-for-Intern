@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const user = await getSessionUser();
@@ -12,6 +15,7 @@ export async function GET() {
     const student = await prisma.studentProfile.findUnique({
       where: { userId: user.id },
       include: {
+        course: true,
         batch: {
           include: {
             mentor: { include: { user: { select: { name: true, email: true, avatar: true } } } },
@@ -125,6 +129,12 @@ export async function GET() {
       })),
       announcements,
       certificateEligibility,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
     });
   } catch (error) {
     console.error('Student overview error:', error);

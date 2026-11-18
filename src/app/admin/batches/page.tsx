@@ -4,18 +4,19 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
-import { DOMAINS } from '@/lib/constants';
+import { triggerPortalSync, usePortalSync } from '@/lib/sync';
 import { CalendarCheck, Plus, Users, Edit, Clock, Award } from 'lucide-react';
 
 export default function AdminBatchesPage() {
   const [batches, setBatches] = useState<any[]>([]);
   const [mentors, setMentors] = useState<any[]>([]);
+  const [domains, setDomains] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
-    domain: DOMAINS[0].name,
+    domain: '',
     startDate: '',
     endDate: '',
     mentorId: '',
@@ -25,9 +26,10 @@ export default function AdminBatchesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bRes, mRes] = await Promise.all([
-        fetch('/api/admin/batches'),
-        fetch('/api/admin/mentors'),
+      const [bRes, mRes, dRes] = await Promise.all([
+        fetch('/api/admin/batches', { cache: 'no-store' }),
+        fetch('/api/admin/mentors', { cache: 'no-store' }),
+        fetch('/api/public/domains', { cache: 'no-store' }),
       ]);
       if (bRes.ok) {
         const bData = await bRes.json();
@@ -36,6 +38,14 @@ export default function AdminBatchesPage() {
       if (mRes.ok) {
         const mData = await mRes.json();
         setMentors(mData.mentors || []);
+      }
+      if (dRes.ok) {
+        const dData = await dRes.json();
+        const domainList = dData.domains || [];
+        setDomains(domainList);
+        if (!form.domain && domainList.length > 0) {
+          setForm((prev) => ({ ...prev, domain: domainList[0] }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -47,6 +57,8 @@ export default function AdminBatchesPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  usePortalSync(loadData, 5000);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,13 +72,14 @@ export default function AdminBatchesPage() {
         setIsModalOpen(false);
         setForm({
           name: '',
-          domain: DOMAINS[0].name,
+          domain: domains[0] || '',
           startDate: '',
           endDate: '',
           mentorId: '',
           status: 'ACTIVE',
         });
-        loadData();
+        await loadData();
+        triggerPortalSync('BATCH_CREATED');
       } else {
         const err = await res.json();
         alert(err.error || 'Failed to create batch');
@@ -171,9 +184,9 @@ export default function AdminBatchesPage() {
               onChange={(e) => setForm({ ...form, domain: e.target.value })}
               className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
             >
-              {DOMAINS.map((d) => (
-                <option key={d.id} value={d.name}>
-                  {d.name}
+              {domains.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>

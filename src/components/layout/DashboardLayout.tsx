@@ -35,6 +35,7 @@ import {
   MessagesSquare,
   ShieldCheck,
   CheckSquare,
+  Briefcase,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -121,11 +122,11 @@ export default function DashboardLayout({ role, children }: DashboardLayoutProps
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
     { label: 'Student Management', href: '/admin/students', icon: Users },
     { label: 'Mentor Management', href: '/admin/mentors', icon: UserCheck },
-    { label: 'Account Approvals', href: '/admin/approvals', icon: UserPlus },
     { label: 'Course Management', href: '/admin/courses', icon: BookOpen },
     { label: 'Mentor Allocation', href: '/admin/allocation', icon: UserCheck },
     { label: 'Attendance Management', href: '/admin/attendance', icon: CheckSquare },
-    { label: 'Internship Programs', href: '/admin/batches', icon: CalendarCheck },
+    { label: 'Internship Programs', href: '/admin/programs', icon: Briefcase },
+    { label: 'Cohorts & Batches', href: '/admin/batches', icon: CalendarCheck },
     { label: 'Applications', href: '/admin/applications', icon: GraduationCap },
     { label: 'Assignments & Tasks', href: '/admin/projects', icon: FolderGit2 },
     { label: 'Performance Analytics', href: '/admin/analytics', icon: BarChart3 },
@@ -164,9 +165,9 @@ export default function DashboardLayout({ role, children }: DashboardLayoutProps
   const navItems = role === 'ADMIN' ? adminNav : role === 'MENTOR' ? mentorNav : studentNav;
 
   const roleLabels = {
-    ADMIN: { title: 'Enterprise Administrator', badge: 'Admin Portal', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+    ADMIN: { title: 'Internship Administrator', badge: 'Admin Portal', color: 'bg-rose-50 text-rose-700 border-rose-200' },
     MENTOR: { title: 'Academic Mentor', badge: 'Faculty Portal', color: 'bg-purple-50 text-[#5B21B6] border-[#DDD6FE]' },
-    STUDENT: { title: 'Internship Fellow', badge: 'Student Portal', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    STUDENT: { title: 'Internship Intern', badge: 'Student Portal', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   };
 
   return (
@@ -188,14 +189,16 @@ export default function DashboardLayout({ role, children }: DashboardLayoutProps
 
         {/* Global Search & Notifications */}
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center relative w-64 lg:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search students, batches, projects..."
-              className="w-full text-xs bg-slate-100/80 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:bg-white transition-all"
-            />
-          </div>
+          {role !== 'STUDENT' && (
+            <div className="hidden md:flex items-center relative w-64 lg:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search students, batches, projects..."
+                className="w-full text-xs bg-slate-100/80 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:bg-white transition-all"
+              />
+            </div>
+          )}
 
           {/* Notifications Dropdown */}
           <div className="relative">

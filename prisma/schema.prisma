@@ -144,6 +144,25 @@ model Course {
 
   modules       Module[]
   students      StudentProfile[]
+  programs      InternshipProgram[]
+}
+
+model InternshipProgram {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  domain      String
+  courseId    String?
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  duration    String   @default("8 Weeks")
+  level       String   @default("Intermediate")
+  techStack   String?  // comma-separated technologies e.g. "React, Node.js, PostgreSQL"
+  projects    String?  // comma-separated project deliverables
+  stipend     String?  @default("Performance Based")
+  mode        String   @default("Virtual / Remote") // Virtual / Remote, Hybrid, Onsite
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Module {
@@ -369,5 +388,6 @@ model SystemSettings {
   contactPhone               String   @default("+91 8143177907")
   officeAddress              String   @default("Remote-First Operations (Pan-India)")
   mandatoryStudentFields      String?  @default("name,email,phone,college,department,graduationYear")
+  googleFormsUrl             String?  @default("https://forms.gle/qF6Qx398Lw4b6c3L6")
   updatedAt                  DateTime @updatedAt
 }

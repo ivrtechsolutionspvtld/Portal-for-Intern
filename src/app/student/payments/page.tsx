@@ -22,14 +22,14 @@ export default function StudentPaymentsPage() {
             No Fees or Payments Required
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto leading-relaxed">
-            Your fellowship enrollment, mentor allocations, learning materials, and certificate issuance are fully sponsored. There are no fees or transactions required from you.
+            Your internship enrollment, mentor allocations, learning materials, and certificate issuance are fully sponsored. There are no fees or transactions required from you.
           </p>
         </div>
 
         <div className="p-4 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 max-w-md mx-auto space-y-2 text-left shadow-xs">
           <div className="flex items-center gap-2 font-bold text-slate-900">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Fellowship Financial Standing</span>
+            <span>Internship Financial Standing</span>
           </div>
           <p className="text-[11px] text-slate-500">
             Status: <strong className="text-emerald-700">Fully Cleared / Sponsored</strong>. Focus your efforts on daily attendance, mentor communication, and milestone project submissions.

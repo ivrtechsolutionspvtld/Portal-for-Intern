@@ -347,7 +347,7 @@ export default function AdminManagementPage() {
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#7C3AED]" />
-              Enterprise Administrators Registry
+              Internship Administrators Registry
             </h3>
             <span className="text-xs text-slate-500">
               Total Provisioned: <strong>{administrators.length}</strong>

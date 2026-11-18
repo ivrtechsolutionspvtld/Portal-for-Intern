@@ -111,7 +111,7 @@ export default function StudentAttendancePage() {
             </div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Attendance Record & History</h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Enterprise daily presence verification, session duration logs, and compliance telemetry.
+              Internship daily presence verification, session duration logs, and compliance telemetry.
             </p>
           </div>
 

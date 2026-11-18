@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, hashPassword } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -26,14 +26,18 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     // Update in transaction
     const updated = await prisma.$transaction(async (tx) => {
       // Update User fields if provided
-      if (data.name || data.status || data.phone) {
+      if (data.name !== undefined || data.status !== undefined || data.phone !== undefined || data.password) {
+        const userUpdate: any = {};
+        if (data.name !== undefined) userUpdate.name = data.name;
+        if (data.status !== undefined) userUpdate.status = data.status;
+        if (data.phone !== undefined) userUpdate.phone = data.phone;
+        if (data.password && data.password.trim().length >= 6) {
+          userUpdate.passwordHash = await hashPassword(data.password.trim());
+        }
+
         await tx.user.update({
           where: { id: existingStudent.userId },
-          data: {
-            name: data.name !== undefined ? data.name : existingStudent.user.name,
-            status: data.status !== undefined ? data.status : existingStudent.user.status,
-            phone: data.phone !== undefined ? data.phone : existingStudent.user.phone,
-          },
+          data: userUpdate,
         });
       }
 
@@ -51,6 +55,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
           dob: data.dob !== undefined ? (data.dob ? new Date(data.dob) : null) : existingStudent.dob,
           address: data.address !== undefined ? data.address : existingStudent.address,
           domain: data.domain !== undefined ? data.domain : existingStudent.domain,
+          courseId: data.courseId !== undefined ? data.courseId || null : existingStudent.courseId,
           startDate: data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : existingStudent.startDate,
           endDate: data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : existingStudent.endDate,
           batchId: data.batchId !== undefined ? data.batchId || null : existingStudent.batchId,

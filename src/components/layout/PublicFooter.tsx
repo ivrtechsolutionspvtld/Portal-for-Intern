@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import IVRLogo from '@/components/IVRLogo';
 import { ShieldCheck, Mail, Phone, Globe } from 'lucide-react';
-import { COMPANY_INFO, DOMAINS } from '@/lib/constants';
+import { COMPANY_INFO } from '@/lib/constants';
 
 export default function PublicFooter() {
   return (
@@ -24,19 +24,32 @@ export default function PublicFooter() {
           {/* Internship Domains */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-white mb-4">
-              Featured Domains
+              Domain Tracks
             </h4>
             <ul className="space-y-2.5 text-xs text-slate-300">
-              {DOMAINS.slice(0, 5).map((d) => (
-                <li key={d.id}>
-                  <Link href="/programs" className="hover:text-purple-300 transition-colors">
-                    {d.name}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <Link href="/programs" className="hover:text-purple-300 transition-colors">
+                  Engineering Curricula
+                </Link>
+              </li>
+              <li>
+                <Link href="/programs" className="hover:text-purple-300 transition-colors">
+                  Specialized Tracks
+                </Link>
+              </li>
+              <li>
+                <Link href="/programs" className="hover:text-purple-300 transition-colors">
+                  Capstone Project Deliverables
+                </Link>
+              </li>
+              <li>
+                <Link href="/apply" className="hover:text-purple-300 transition-colors">
+                  Admissions Application
+                </Link>
+              </li>
               <li>
                 <Link href="/programs" className="text-[#C4B5FD] font-semibold hover:underline inline-flex items-center gap-1">
-                  View All 8 Domains &rarr;
+                  View All Programs &rarr;
                 </Link>
               </li>
             </ul>

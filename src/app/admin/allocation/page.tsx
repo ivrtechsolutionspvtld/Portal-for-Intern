@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
+import { triggerPortalSync, usePortalSync } from '@/lib/sync';
 import {
   UserCheck,
   Users,
@@ -41,7 +42,7 @@ export default function AdminMentorAllocationPage() {
   const loadAllocations = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/allocation');
+      const res = await fetch('/api/admin/allocation', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setStudents(data.students || []);
@@ -59,6 +60,8 @@ export default function AdminMentorAllocationPage() {
   useEffect(() => {
     loadAllocations();
   }, []);
+
+  usePortalSync(loadAllocations, 5000);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -91,7 +94,8 @@ export default function AdminMentorAllocationPage() {
         setTargetMentorId('');
         setTargetCourseId('');
         setReassignReason('');
-        loadAllocations();
+        await loadAllocations();
+        triggerPortalSync('ALLOCATION_UPDATED');
       }
     } catch {
       showNotification('error', 'Network error while executing reassignment.');
@@ -344,7 +348,7 @@ export default function AdminMentorAllocationPage() {
         >
           <form onSubmit={handleReassignSubmit} className="space-y-4 text-xs">
             <div className="p-3 bg-purple-50 rounded-lg border border-purple-200 text-purple-900 leading-relaxed">
-              <span className="font-bold">Audit Policy:</span> Any modification to a student&apos;s allocated course track or assigned mentor is permanently logged in the enterprise audit trail and immediately updates student access permissions.
+              <span className="font-bold">Audit Policy:</span> Any modification to a student&apos;s allocated course track or assigned mentor is permanently logged in the internship audit trail and immediately updates student access permissions.
             </div>
 
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-2 gap-2 text-[11px]">

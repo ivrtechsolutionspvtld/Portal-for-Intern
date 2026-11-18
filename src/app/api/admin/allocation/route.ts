@@ -4,6 +4,9 @@ import { getSessionUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { sendEmailNotification } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const admin = await getSessionUser();
@@ -42,12 +45,21 @@ export async function GET() {
       orderBy: { title: 'asc' },
     });
 
-    return NextResponse.json({
-      success: true,
-      students,
-      mentors,
-      courses,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        students,
+        mentors,
+        courses,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (err: any) {
     console.error('Allocation fetch error:', err);
     return NextResponse.json({ error: err.message || 'Failed to fetch allocations' }, { status: 500 });

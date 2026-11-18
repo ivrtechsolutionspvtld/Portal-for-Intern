@@ -30,7 +30,7 @@ export default function AdminRolesPage() {
     { module: 'Generate & Issue Verified Certificates', admin: true, mentor: false, student: false },
     { module: 'Multi-Channel Multi-User Broadcasts', admin: true, mentor: false, student: false },
     { module: 'Direct Student-Mentor Messaging', admin: true, mentor: true, student: true },
-    { module: 'Export Enterprise Excel Rosters', admin: true, mentor: true, student: false },
+    { module: 'Export Internship Excel Rosters', admin: true, mentor: true, student: false },
     { module: 'Security Audit Telemetry Review', admin: true, mentor: false, student: false },
     { module: 'Global System Settings Configuration', admin: true, mentor: false, student: false },
   ];
@@ -60,7 +60,7 @@ export default function AdminRolesPage() {
               </span>
               <ShieldAlert className="w-4 h-4 text-rose-600" />
             </div>
-            <h3 className="font-bold text-slate-900 text-sm">Enterprise Administrator</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Internship Administrator</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               Unrestricted platform sovereignty. Approves and rejects accounts, provisions faculty mentors, modifies system configurations, and issues certified credentials.
             </p>

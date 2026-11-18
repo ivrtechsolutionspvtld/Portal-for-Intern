@@ -148,6 +148,11 @@ export async function POST(req: Request) {
       name,
       email,
       phone,
+      password,
+      courseId,
+      domain,
+      mentorId,
+      batchId,
       studentId: customStudentId,
       college,
       department,
@@ -157,19 +162,37 @@ export async function POST(req: Request) {
       regNumber,
       dob,
       address,
-      domain,
       startDate,
       endDate,
-      batchId,
-      mentorId,
       resumeUrl,
       status = 'ACTIVE',
       isDemo = false,
-      password,
     } = await req.json();
 
-    if (!name || !email || !college || !department || !graduationYear || !domain) {
-      return NextResponse.json({ error: 'Missing mandatory student information' }, { status: 400 });
+    if (!name || !email || !college || !department || !graduationYear) {
+      return NextResponse.json({ error: 'Missing mandatory student information (name, email, college, department, graduationYear)' }, { status: 400 });
+    }
+
+    if (!password || password.trim().length < 6) {
+      return NextResponse.json({ error: 'Password is required and must be at least 6 characters long' }, { status: 400 });
+    }
+
+    // Determine domain and courseId linkage
+    let resolvedDomain = domain ? domain.trim() : '';
+    let resolvedCourseId = courseId || null;
+
+    if (!resolvedDomain && resolvedCourseId) {
+      const crs = await prisma.course.findUnique({ where: { id: resolvedCourseId } });
+      if (crs) resolvedDomain = crs.domain || crs.title;
+    } else if (resolvedDomain && !resolvedCourseId) {
+      const crs = await prisma.course.findFirst({
+        where: { OR: [{ domain: resolvedDomain }, { title: resolvedDomain }] },
+      });
+      if (crs) resolvedCourseId = crs.id;
+    }
+
+    if (!resolvedDomain) {
+      resolvedDomain = 'Web Development';
     }
 
     // Check duplicate email
@@ -224,7 +247,8 @@ export async function POST(req: Request) {
           regNumber: regNumber?.trim() || null,
           dob: dob ? new Date(dob) : null,
           address: address?.trim() || null,
-          domain,
+          domain: resolvedDomain,
+          courseId: resolvedCourseId,
           startDate: startDate ? new Date(startDate) : new Date(),
           endDate: endDate ? new Date(endDate) : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
           batchId: batchId || null,

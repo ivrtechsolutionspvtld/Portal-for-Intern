@@ -1,14 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { User, Mail, Phone, Building, BookOpen, Award, Save, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Building, BookOpen, Award, Save, CheckCircle2, ShieldCheck, Camera, UploadCloud, Loader2 } from 'lucide-react';
 
 export default function StudentProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
+
+  // Photo upload states
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Editable fields permitted by admin
   const [phone, setPhone] = useState('');
@@ -39,15 +44,67 @@ export default function StudentProfilePage() {
     loadProfile();
   }, []);
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPhotoError(null);
+
+    // Validate type: JPG, JPEG, PNG
+    const validMimes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!validMimes.includes(file.type.toLowerCase())) {
+      setPhotoError('Invalid format. Please upload JPG, JPEG, or PNG.');
+      return;
+    }
+
+    // Validate size: max 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('File size exceeds 5MB limit.');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const res = await fetch('/api/student/profile/photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.avatarUrl) {
+        setProfile((prev: any) => ({ ...prev, avatar: data.avatarUrl }));
+        setSavedMessage(true);
+        setTimeout(() => setSavedMessage(false), 3000);
+      } else {
+        setPhotoError(data.error || 'Failed to upload photograph');
+      }
+    } catch {
+      setPhotoError('Network error uploading photograph');
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSavedMessage(false);
     try {
-      // In this system, profile updates are sent to an update endpoint or admin update
-      await new Promise((resolve) => setTimeout(resolve, 600)); // Simulate save
-      setSavedMessage(true);
-      setTimeout(() => setSavedMessage(false), 3000);
+      const res = await fetch('/api/student/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, bio, resumeUrl }),
+      });
+      if (res.ok) {
+        setSavedMessage(true);
+        setTimeout(() => setSavedMessage(false), 3000);
+      } else {
+        alert('Failed to update profile');
+      }
     } catch {
       alert('Error updating profile');
     } finally {
@@ -59,7 +116,7 @@ export default function StudentProfilePage() {
     <DashboardLayout role="STUDENT">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Fellow Profile & Credentials</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Intern Profile & Credentials</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Academic records, department affiliations, and editable contact preferences.
           </p>
@@ -68,18 +125,65 @@ export default function StudentProfilePage() {
         {savedMessage && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
-            <span>Profile preferences updated successfully!</span>
+            <span>Profile and credentials updated successfully!</span>
+          </div>
+        )}
+
+        {photoError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
+            {photoError}
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Avatar Card */}
+          {/* Left Avatar & Photo Upload Card */}
           <div className="ivr-card p-6 bg-white border border-slate-200 rounded-xl text-center space-y-4">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#3B0764] to-[#6D28D9] text-white text-3xl font-black flex items-center justify-center mx-auto shadow-md">
-              {profile?.name?.charAt(0) || 'F'}
+            <div className="relative inline-block mx-auto">
+              {profile?.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt={profile.name || 'Student Photo'}
+                  className="w-28 h-28 rounded-2xl object-cover border-2 border-[#7C3AED] shadow-md mx-auto"
+                />
+              ) : (
+                <div className="w-28 h-28 rounded-2xl bg-gradient-to-tr from-[#3B0764] to-[#6D28D9] text-white text-3xl font-black flex items-center justify-center mx-auto shadow-md">
+                  {profile?.name?.charAt(0) || 'I'}
+                </div>
+              )}
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                accept="image/jpeg,image/png,image/jpg"
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="absolute -bottom-2 -right-2 p-2 rounded-full bg-[#6D28D9] hover:bg-[#5B21B6] text-white shadow-lg transition-transform hover:scale-105"
+                title="Upload Passport-Size Photo"
+              >
+                {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              </button>
             </div>
 
             <div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="text-xs font-bold text-[#6D28D9] hover:underline inline-flex items-center gap-1"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                {profile?.avatar ? 'Replace Passport Photo' : 'Upload Passport Photo'}
+              </button>
+              <p className="text-[10px] text-slate-400 mt-0.5">JPG, JPEG or PNG (Max 5MB)</p>
+            </div>
+
+            <div className="pt-2">
               <h2 className="text-lg font-bold text-slate-900">{profile?.name}</h2>
               <span className="text-xs text-[#6D28D9] font-semibold block">{profile?.domain}</span>
               <span className="text-[11px] font-mono text-slate-400 block mt-0.5">{profile?.email}</span>

@@ -150,7 +150,7 @@ export default function StudentMessagesPage() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-50 text-[#5B21B6] border border-purple-200">
               <ShieldCheck className="w-3.5 h-3.5 text-[#7C3AED]" />
-              Enterprise End-to-End Logged
+              Internship End-to-End Logged
             </span>
           </div>
         </div>

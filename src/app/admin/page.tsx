@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Clock,
   Sparkles,
-  UserPlus,
   AlertTriangle,
   ArrowRightLeft,
   Activity,
@@ -48,8 +47,6 @@ export default function AdminOverviewPage() {
   }, []);
 
   const metrics = data?.metrics || {};
-  const hasPendingApprovals =
-    (metrics.pendingStudentApprovals || 0) > 0 || (metrics.pendingMentorApprovals || 0) > 0;
   const hasAllocationBacklog =
     (metrics.awaitingCourseAllocation || 0) > 0 || (metrics.awaitingMentorAssignment || 0) > 0;
 
@@ -60,9 +57,9 @@ export default function AdminOverviewPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Enterprise Operations Overview</h1>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Internship Operations Overview</h1>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-[#7C3AED] border border-purple-200">
-                Live Enterprise Database
+                Live Internship Database
               </span>
             </div>
             <p className="text-xs text-slate-500">
@@ -72,15 +69,8 @@ export default function AdminOverviewPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/admin/approvals"
-              className="btn-ivr-primary text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-xs"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              Account Approvals
-            </Link>
-            <Link
               href="/admin/courses"
-              className="btn-ivr-secondary text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5"
+              className="btn-ivr-primary text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-xs"
             >
               <BookOpen className="w-3.5 h-3.5" />
               Manage Courses
@@ -104,30 +94,6 @@ export default function AdminOverviewPage() {
 
         {/* Operational Attention Banners */}
         <div className="space-y-3">
-          {hasPendingApprovals && (
-            <div className="p-4 bg-gradient-to-r from-purple-50 via-purple-100/50 to-white border border-purple-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-purple-200 text-[#5B21B6] flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-slate-900 text-xs block">
-                    Registrations Awaiting Administrator Approval & Allocation
-                  </span>
-                  <span className="text-slate-600 text-[11px]">
-                    <strong>{metrics.pendingStudentApprovals || 0}</strong> student(s) and <strong>{metrics.pendingMentorApprovals || 0}</strong> mentor(s) pending verification.
-                  </span>
-                </div>
-              </div>
-              <Link
-                href="/admin/approvals"
-                className="btn-ivr-primary text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 self-start sm:self-auto shrink-0 shadow-2xs"
-              >
-                Review Approvals &rarr;
-              </Link>
-            </div>
-          )}
-
           {hasAllocationBacklog && (
             <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900">
               <div className="flex items-center gap-2.5">
@@ -162,11 +128,11 @@ export default function AdminOverviewPage() {
           />
 
           <StatCard
-            title="Pending Approvals"
-            value={loading ? '...' : ((metrics.pendingStudentApprovals || 0) + (metrics.pendingMentorApprovals || 0))}
-            subtitle={`${metrics.pendingStudentApprovals || 0} students • ${metrics.pendingMentorApprovals || 0} mentors`}
-            iconName="GraduationCap"
-            highlightColor="border-l-amber-500"
+            title="Internship Programs"
+            value={loading ? '...' : (metrics.totalCourses || 6)}
+            subtitle="Active Curriculum Tracks"
+            iconName="BookOpen"
+            highlightColor="border-l-[#7C3AED]"
           />
 
           <StatCard

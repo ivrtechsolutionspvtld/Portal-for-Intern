@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
-import { DOMAINS } from '@/lib/constants';
+import { triggerPortalSync, usePortalSync } from '@/lib/sync';
 import { FolderGit2, Plus, Clock, ExternalLink, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
+  const [domains, setDomains] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,7 +18,7 @@ export default function AdminProjectsPage() {
 
   const [form, setForm] = useState({
     title: '',
-    domain: DOMAINS[0].name,
+    domain: '',
     description: '',
     requirements: '',
     deadline: '',
@@ -28,9 +29,10 @@ export default function AdminProjectsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [pRes, bRes] = await Promise.all([
-        fetch('/api/admin/projects'),
-        fetch('/api/admin/batches'),
+      const [pRes, bRes, dRes] = await Promise.all([
+        fetch('/api/admin/projects', { cache: 'no-store' }),
+        fetch('/api/admin/batches', { cache: 'no-store' }),
+        fetch('/api/public/domains', { cache: 'no-store' }),
       ]);
       if (pRes.ok) {
         const pData = await pRes.json();
@@ -39,6 +41,14 @@ export default function AdminProjectsPage() {
       if (bRes.ok) {
         const bData = await bRes.json();
         setBatches(bData.batches || []);
+      }
+      if (dRes.ok) {
+        const dData = await dRes.json();
+        const domainList = dData.domains || [];
+        setDomains(domainList);
+        if (!form.domain && domainList.length > 0) {
+          setForm((prev) => ({ ...prev, domain: domainList[0] }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -50,6 +60,8 @@ export default function AdminProjectsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  usePortalSync(loadData, 5000);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +75,15 @@ export default function AdminProjectsPage() {
         setIsModalOpen(false);
         setForm({
           title: '',
-          domain: DOMAINS[0].name,
+          domain: domains[0] || '',
           description: '',
           requirements: '',
           deadline: '',
           maxScore: '100',
           batchId: '',
         });
-        loadData();
+        await loadData();
+        triggerPortalSync('PROJECT_CREATED');
       } else {
         alert('Failed to create project');
       }
@@ -228,9 +241,9 @@ export default function AdminProjectsPage() {
                 onChange={(e) => setForm({ ...form, domain: e.target.value })}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
               >
-                {DOMAINS.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
+                {domains.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
                   </option>
                 ))}
               </select>

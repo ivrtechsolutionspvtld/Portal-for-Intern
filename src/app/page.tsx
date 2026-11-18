@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import PublicFooter from '@/components/layout/PublicFooter';
-import { DOMAINS, COMPANY_INFO, APPLICATION_GOOGLE_FORM_URL } from '@/lib/constants';
+import { COMPANY_INFO, APPLICATION_GOOGLE_FORM_URL } from '@/lib/constants';
+import { usePortalSync } from '@/lib/sync';
 import {
   ArrowRight,
   ShieldCheck,
@@ -19,6 +20,30 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
+  const [domains, setDomains] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadPublicData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/public/programs', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setDomains(data.domains || []);
+      }
+    } catch (err) {
+      console.error('Failed to load dynamic domain tracks', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPublicData();
+  }, [loadPublicData]);
+
+  // Real-time synchronization across all tabs and devices
+  usePortalSync(loadPublicData, 5000);
+
   return (
     <div className="min-h-screen bg-white flex flex-col antialiased">
       <PublicNavbar />
@@ -58,7 +83,7 @@ export default function HomePage() {
               href="/programs"
               className="w-full sm:w-auto btn-ivr-secondary text-sm font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2"
             >
-              Explore 8 Domains
+              Explore {domains.length > 0 ? `${domains.length} Domain Tracks` : 'Domain Tracks'}
             </Link>
             <Link
               href="/login"
@@ -81,54 +106,72 @@ export default function HomePage() {
               Specialized Engineering Domains
             </h3>
             <p className="mt-3 text-sm sm:text-base text-slate-600">
-              Each track is architected around current tech industry specifications, from full-stack web applications to cloud computing and AI/ML.
+              Each track is dynamically fetched from the portal database and architected around industry specifications.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {DOMAINS.map((domain) => (
-              <div
-                key={domain.id}
-                className="ivr-card p-6 flex flex-col justify-between hover:-translate-y-1 transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-md bg-purple-50 text-[#5B21B6] border border-purple-100">
-                      {domain.duration}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">{domain.level}</span>
+            {loading ? (
+              [1, 2, 3, 4].map((i) => (
+                <div key={i} className="ivr-card p-6 h-64 animate-pulse bg-white border border-slate-100 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="h-4 w-20 bg-slate-200 rounded" />
+                    <div className="h-6 w-3/4 bg-slate-200 rounded" />
+                    <div className="h-16 w-full bg-slate-100 rounded" />
                   </div>
-
-                  <h4 className="text-base font-bold text-slate-900 mb-2 leading-snug">
-                    {domain.name}
-                  </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-3 mb-4">
-                    {domain.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-1.5 mb-6">
-                    {domain.techStack.slice(0, 4).map((tech) => (
-                      <span
-                        key={tech}
-                        className="text-[10px] font-medium bg-slate-100 text-slate-700 px-2 py-0.5 rounded"
-                      >
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
+                  <div className="h-4 w-1/2 bg-slate-200 rounded" />
                 </div>
-
-                <a
-                  href={APPLICATION_GOOGLE_FORM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-bold text-[#6D28D9] hover:text-[#4C1D95] flex items-center justify-between pt-3 border-t border-slate-100 group"
-                >
-                  <span>Apply for this track</span>
-                  <ExternalLink className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                </a>
+              ))
+            ) : domains.length === 0 ? (
+              <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-300 p-8">
+                <p className="text-sm font-semibold text-slate-700">No active domain tracks currently listed.</p>
+                <p className="text-xs text-slate-500 mt-1">Courses created by Admin will automatically appear here in real time.</p>
               </div>
-            ))}
+            ) : (
+              domains.map((domain) => (
+                <div
+                  key={domain.id}
+                  className="ivr-card p-6 flex flex-col justify-between hover:-translate-y-1 transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-md bg-purple-50 text-[#5B21B6] border border-purple-100">
+                        {domain.duration}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400">{domain.level}</span>
+                    </div>
+
+                    <h4 className="text-base font-bold text-slate-900 mb-2 leading-snug">
+                      {domain.name}
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-3 mb-4">
+                      {domain.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {(domain.techStack || []).slice(0, 4).map((tech: string, tIdx: number) => (
+                        <span
+                          key={tIdx}
+                          className="text-[10px] font-medium bg-slate-100 text-slate-700 px-2 py-0.5 rounded"
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <a
+                    href={APPLICATION_GOOGLE_FORM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-[#6D28D9] hover:text-[#4C1D95] flex items-center justify-between pt-3 border-t border-slate-100 group"
+                  >
+                    <span>Apply for this track</span>
+                    <ExternalLink className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </a>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="text-center mt-12">

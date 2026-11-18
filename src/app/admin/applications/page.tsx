@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
-import { DOMAINS } from '@/lib/constants';
+import { usePortalSync } from '@/lib/sync';
 import {
   GraduationCap,
   Search,
@@ -29,6 +29,7 @@ export default function AdminApplicationsPage() {
   const [search, setSearch] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [domains, setDomains] = useState<string[]>([]);
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
@@ -37,10 +38,17 @@ export default function AdminApplicationsPage() {
   const loadApplications = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/applications');
+      const [res, dRes] = await Promise.all([
+        fetch('/api/admin/applications', { cache: 'no-store' }),
+        fetch('/api/public/domains', { cache: 'no-store' }),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setApplications(data.applications || []);
+      }
+      if (dRes.ok) {
+        const dData = await dRes.json();
+        setDomains(dData.domains || []);
       }
     } catch (err) {
       console.error(err);
@@ -52,6 +60,8 @@ export default function AdminApplicationsPage() {
   useEffect(() => {
     loadApplications();
   }, []);
+
+  usePortalSync(loadApplications, 5000);
 
   const handleUpdateStatus = async (appId: string, status: 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW') => {
     setSubmitting(true);
@@ -138,9 +148,9 @@ export default function AdminApplicationsPage() {
             className="text-xs p-2 rounded-lg border border-slate-200 bg-white"
           >
             <option value="">All Internship Tracks</option>
-            {DOMAINS.map((d) => (
-              <option key={d.id} value={d.name}>
-                {d.name}
+            {domains.map((d) => (
+              <option key={d} value={d}>
+                {d}
               </option>
             ))}
           </select>

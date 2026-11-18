@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, hashPassword } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 
 export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -62,15 +62,19 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
 
     const updated = await prisma.$transaction(async (tx) => {
       // 1. Update user fields
-      if (body.name || body.status || body.phone || body.avatar) {
+      const userUpdateData: any = {};
+      if (body.name !== undefined) userUpdateData.name = body.name.trim();
+      if (body.phone !== undefined) userUpdateData.phone = body.phone?.trim();
+      if (body.status !== undefined) userUpdateData.status = body.status;
+      if (body.avatar !== undefined) userUpdateData.avatar = body.avatar;
+      if (body.password && typeof body.password === 'string' && body.password.trim().length >= 6) {
+        userUpdateData.passwordHash = await hashPassword(body.password.trim());
+      }
+
+      if (Object.keys(userUpdateData).length > 0) {
         await tx.user.update({
           where: { id: existingMentor.userId },
-          data: {
-            name: body.name !== undefined ? body.name.trim() : existingMentor.user.name,
-            phone: body.phone !== undefined ? body.phone?.trim() : existingMentor.user.phone,
-            status: body.status !== undefined ? body.status : existingMentor.user.status,
-            avatar: body.avatar !== undefined ? body.avatar : existingMentor.user.avatar,
-          },
+          data: userUpdateData,
         });
       }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
+import { getISTDayBounds, processDailyAbsences } from '@/lib/attendance';
 
 export async function GET(req: Request) {
   try {
@@ -14,20 +15,25 @@ export async function GET(req: Request) {
     const courseId = searchParams.get('courseId') || '';
     const mentorId = searchParams.get('mentorId') || '';
     const batchId = searchParams.get('batchId') || '';
+    const domain = searchParams.get('domain') || '';
     const dateStr = searchParams.get('date') || '';
     const status = searchParams.get('status') || '';
     const search = searchParams.get('search')?.toLowerCase().trim() || '';
+
+    // Automatically evaluate absences for the target day so absent students are reliably captured
+    await processDailyAbsences(dateStr || undefined);
 
     const whereClause: any = {};
     if (batchId && batchId !== 'ALL') whereClause.batchId = batchId;
     if (status && status !== 'ALL') whereClause.status = status;
 
     if (dateStr) {
-      const startOfDay = new Date(dateStr);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(dateStr);
-      endOfDay.setHours(23, 59, 59, 999);
+      const { startOfDay, endOfDay } = getISTDayBounds(dateStr);
       whereClause.date = { gte: startOfDay, lte: endOfDay };
+    }
+
+    if (domain && domain !== 'ALL') {
+      whereClause.student = { ...whereClause.student, domain };
     }
 
     if (courseId && courseId !== 'ALL') {

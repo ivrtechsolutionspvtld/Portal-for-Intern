@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { BookOpen, Video, FileText, CheckCircle2, Clock, Check, Loader2, Sparkles, ExternalLink } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
+import { BookOpen, Video, FileText, CheckCircle2, Clock, Check, Loader2, Sparkles, ExternalLink, Play } from 'lucide-react';
 
 export default function StudentLearningPage() {
   const [course, setCourse] = useState<any>(null);
@@ -10,6 +11,10 @@ export default function StudentLearningPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Modals for direct video playback and PDF viewing inside portal
+  const [activeVideoModal, setActiveVideoModal] = useState<{ title: string; videoUrl: string } | null>(null);
+  const [activePdfModal, setActivePdfModal] = useState<{ title: string; pdfUrl: string } | null>(null);
 
   const loadMaterials = async () => {
     setLoading(true);
@@ -78,7 +83,7 @@ export default function StudentLearningPage() {
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              {course?.title || 'Enterprise Curriculum Modules'}
+              {course?.title || 'Internship Curriculum Modules'}
             </h1>
           </div>
 
@@ -164,30 +169,28 @@ export default function StudentLearningPage() {
                     </div>
                   )}
 
-                  {/* Resource Links */}
+                  {/* Resource Links - Direct in-portal viewing */}
                   <div className="pt-2 flex flex-wrap items-center gap-3 text-xs">
                     {m.videoUrl && (
-                      <a
-                        href={m.videoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-ivr-secondary px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-[#5B21B6]"
+                      <button
+                        type="button"
+                        onClick={() => setActiveVideoModal({ title: m.title, videoUrl: m.videoUrl })}
+                        className="btn-ivr-secondary px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-[#5B21B6] hover:bg-purple-100 transition-colors"
                       >
-                        <Video className="w-3.5 h-3.5" />
-                        Watch Video Lecture
-                      </a>
+                        <Video className="w-3.5 h-3.5 text-[#6D28D9]" />
+                        View Video Lecture
+                      </button>
                     )}
 
                     {m.pdfUrl && (
-                      <a
-                        href={m.pdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-ivr-secondary px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-[#5B21B6]"
+                      <button
+                        type="button"
+                        onClick={() => setActivePdfModal({ title: m.title, pdfUrl: m.pdfUrl })}
+                        className="btn-ivr-secondary px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-[#5B21B6] hover:bg-purple-100 transition-colors"
                       >
-                        <FileText className="w-3.5 h-3.5" />
-                        Download PDF Syllabus & Notes
-                      </a>
+                        <FileText className="w-3.5 h-3.5 text-[#6D28D9]" />
+                        View PDF Document
+                      </button>
                     )}
                   </div>
                 </div>
@@ -195,6 +198,69 @@ export default function StudentLearningPage() {
             ))
           )}
         </div>
+
+        {/* Integrated Video Player Modal */}
+        {activeVideoModal && (
+          <Modal
+            isOpen={!!activeVideoModal}
+            onClose={() => setActiveVideoModal(null)}
+            title={`Video Lecture: ${activeVideoModal.title}`}
+            maxWidth="4xl"
+          >
+            <div className="space-y-4">
+              <div className="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center shadow-inner">
+                <video
+                  controls
+                  autoPlay
+                  src={activeVideoModal.videoUrl}
+                  className="w-full h-full object-contain"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-100">
+                <span>Integrated Video Player • IVR TECH SOLUTIONS</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveVideoModal(null)}
+                  className="btn-ivr-secondary px-4 py-1.5 rounded-lg font-semibold"
+                >
+                  Close Player
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Integrated PDF Viewer Modal */}
+        {activePdfModal && (
+          <Modal
+            isOpen={!!activePdfModal}
+            onClose={() => setActivePdfModal(null)}
+            title={`Document Viewer: ${activePdfModal.title}`}
+            maxWidth="4xl"
+          >
+            <div className="space-y-4">
+              <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 h-[680px]">
+                <iframe
+                  src={activePdfModal.pdfUrl}
+                  className="w-full h-full border-0"
+                  title={activePdfModal.title}
+                />
+              </div>
+              <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-100">
+                <span>Integrated Document Viewer • IVR TECH SOLUTIONS</span>
+                <button
+                  type="button"
+                  onClick={() => setActivePdfModal(null)}
+                  className="btn-ivr-secondary px-4 py-1.5 rounded-lg font-semibold"
+                >
+                  Close Document
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
       </div>
     </DashboardLayout>
   );

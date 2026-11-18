@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { comparePassword, signToken, COOKIE_NAME } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
+import { recordStudentLoginAttendance } from '@/lib/attendance';
 
 export async function POST(req: Request) {
   try {
@@ -70,67 +71,20 @@ export async function POST(req: Request) {
       console.warn('Non-blocking: could not update lastLogin timestamp', updateErr);
     }
 
-    // Version A: Automatic Portal Login Attendance for Students
+    // Section 7: Automatic Daily Attendance (Asia/Kolkata 24-hr period)
     if (user.role === 'STUDENT' && user.studentProfile) {
       try {
-        const settings = await prisma.systemSettings.findUnique({
-          where: { id: 'ivr-global-settings' },
+        await recordStudentLoginAttendance(user.studentProfile.id, user.studentProfile.batchId);
+        await logAuditEvent({
+          userId: user.id,
+          userEmail: user.email,
+          userRole: 'STUDENT',
+          action: 'AUTOMATIC_LOGIN_ATTENDANCE',
+          module: 'ATTENDANCE',
+          details: `Recorded PRESENT attendance automatically on student login in Asia/Kolkata timezone`,
         });
-
-        if (settings?.attendanceMode === 'AUTOMATIC') {
-          const now = new Date();
-          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-          const existingRecord = await prisma.attendanceRecord.findFirst({
-            where: {
-              studentId: user.studentProfile.id,
-              date: startOfDay,
-            },
-          });
-
-          if (!existingRecord) {
-            const graceParts = (settings.lateArrivalGraceTime || '10:00').split(':');
-            const graceMinutes = parseInt(graceParts[0], 10) * 60 + parseInt(graceParts[1] || '0', 10);
-            const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            const isLate = currentMinutes > graceMinutes;
-
-            await prisma.attendanceRecord.create({
-              data: {
-                studentId: user.studentProfile.id,
-                batchId: user.studentProfile.batchId || null,
-                date: startOfDay,
-                status: isLate ? 'LATE' : 'PRESENT',
-                method: 'AUTOMATIC_LOGIN',
-                checkInTime: now,
-                notes: isLate ? 'Automatic Login (Late arrival after grace period)' : 'Automatic Portal Login Attendance',
-              },
-            });
-
-            await logAuditEvent({
-              userId: user.id,
-              userEmail: user.email,
-              userRole: 'STUDENT',
-              action: 'AUTOMATIC_LOGIN_ATTENDANCE',
-              module: 'ATTENDANCE',
-              details: `Recorded ${isLate ? 'LATE' : 'PRESENT'} attendance automatically on portal login at ${now.toLocaleTimeString()}`,
-            });
-          } else {
-            // Update session activity time without duplicating attendance
-            const diffMins = Math.round(
-              (now.getTime() - (existingRecord.checkInTime ? new Date(existingRecord.checkInTime).getTime() : now.getTime())) / 60000
-            );
-            await prisma.attendanceRecord.update({
-              where: { id: existingRecord.id },
-              data: {
-                checkOutTime: now,
-                durationMinutes: Math.max(diffMins, existingRecord.durationMinutes || 0),
-              },
-            });
-          }
-        }
       } catch (attErr) {
         console.error('Automatic attendance record error:', attErr);
-        // Does not block authentication if attendance logging encounters transient error
       }
     }
 

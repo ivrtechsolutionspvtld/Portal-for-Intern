@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
-import { DOMAINS } from '@/lib/constants';
+import { triggerPortalSync, usePortalSync } from '@/lib/sync';
 import {
   Users,
   Search,
@@ -27,6 +27,7 @@ export default function AdminStudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [mentors, setMentors] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -41,16 +42,21 @@ export default function AdminStudentsPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [editStudentPassword, setEditStudentPassword] = useState('');
+
+  const [domains, setDomains] = useState<string[]>([]);
 
   // Add Form state
   const [newStudent, setNewStudent] = useState({
     name: '',
     email: '',
     phone: '',
+    password: '',
     college: '',
     department: '',
     graduationYear: '2026',
-    domain: DOMAINS[0].name,
+    domain: '',
+    courseId: '',
     batchId: '',
     mentorId: '',
   });
@@ -70,7 +76,7 @@ export default function AdminStudentsPage() {
       if (selectedBatch) query.set('batchId', selectedBatch);
       if (selectedStatus) query.set('status', selectedStatus);
 
-      const res = await fetch(`/api/admin/students?${query.toString()}`);
+      const res = await fetch(`/api/admin/students?${query.toString()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setStudents(data.students || []);
@@ -84,9 +90,11 @@ export default function AdminStudentsPage() {
 
   const fetchBatchesAndMentors = async () => {
     try {
-      const [bRes, mRes] = await Promise.all([
-        fetch('/api/admin/batches'),
-        fetch('/api/admin/mentors'),
+      const [bRes, mRes, dRes, pRes] = await Promise.all([
+        fetch('/api/admin/batches', { cache: 'no-store' }),
+        fetch('/api/admin/mentors', { cache: 'no-store' }),
+        fetch('/api/public/domains', { cache: 'no-store' }),
+        fetch('/api/admin/courses', { cache: 'no-store' }),
       ]);
       if (bRes.ok) {
         const bData = await bRes.json();
@@ -95,6 +103,22 @@ export default function AdminStudentsPage() {
       if (mRes.ok) {
         const mData = await mRes.json();
         setMentors(mData.mentors || []);
+      }
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        const courseList = pData.courses || [];
+        setPrograms(courseList);
+        if (!newStudent.courseId && courseList.length > 0) {
+          setNewStudent((prev) => ({ ...prev, courseId: courseList[0].id }));
+        }
+      }
+      if (dRes.ok) {
+        const dData = await dRes.json();
+        const domainList = dData.domains || [];
+        setDomains(domainList);
+        if (!newStudent.domain && domainList.length > 0) {
+          setNewStudent((prev) => ({ ...prev, domain: domainList[0] }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -108,6 +132,8 @@ export default function AdminStudentsPage() {
   useEffect(() => {
     fetchStudents();
   }, [search, selectedDomain, selectedBatch, selectedStatus]);
+
+  usePortalSync(fetchStudents, 5000);
 
   // Handle Add Student
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -124,14 +150,17 @@ export default function AdminStudentsPage() {
           name: '',
           email: '',
           phone: '',
+          password: '',
           college: '',
           department: '',
           graduationYear: '2026',
-          domain: DOMAINS[0].name,
+          domain: domains[0] || '',
+          courseId: programs[0]?.id || '',
           batchId: '',
           mentorId: '',
         });
-        fetchStudents();
+        await fetchStudents();
+        triggerPortalSync('STUDENT_CREATED');
       } else {
         const err = await res.json();
         alert(err.error || 'Failed to create student');
@@ -156,12 +185,15 @@ export default function AdminStudentsPage() {
           college: selectedStudent.college,
           department: selectedStudent.department,
           domain: selectedStudent.domain,
+          courseId: selectedStudent.courseId || selectedStudent.enrolledCourseId || null,
           batchId: selectedStudent.batch?.id || null,
           mentorId: selectedStudent.mentor?.id || null,
+          password: editStudentPassword.trim() ? editStudentPassword.trim() : undefined,
         }),
       });
       if (res.ok) {
         setIsEditOpen(false);
+        setEditStudentPassword('');
         fetchStudents();
       } else {
         alert('Failed to update student profile');
@@ -338,9 +370,9 @@ export default function AdminStudentsPage() {
             className="text-xs p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
           >
             <option value="">All Domains</option>
-            {DOMAINS.map((d) => (
-              <option key={d.id} value={d.name}>
-                {d.name}
+            {domains.map((d) => (
+              <option key={d} value={d}>
+                {d}
               </option>
             ))}
           </select>
@@ -517,7 +549,7 @@ export default function AdminStudentsPage() {
         <form onSubmit={handleAddSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
               <input
                 type="text"
                 required
@@ -527,7 +559,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Email Address *</label>
               <input
                 type="email"
                 required
@@ -535,6 +567,96 @@ export default function AdminStudentsPage() {
                 onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#7C3AED]"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+              <input
+                type="text"
+                required
+                placeholder="+91 9876543210"
+                value={newStudent.phone}
+                onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#7C3AED]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Account Password *</label>
+              <input
+                type="password"
+                required
+                placeholder="Initial login password"
+                value={newStudent.password}
+                onChange={(e) => setNewStudent({ ...newStudent, password: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[#7C3AED]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Domain *</label>
+              <select
+                value={newStudent.domain}
+                onChange={(e) => setNewStudent({ ...newStudent, domain: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+              >
+                {domains.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Internship Program</label>
+              <select
+                value={newStudent.courseId}
+                onChange={(e) => setNewStudent({ ...newStudent, courseId: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+              >
+                <option value="">Unassigned</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Faculty Mentor</label>
+              <select
+                value={newStudent.mentorId}
+                onChange={(e) => setNewStudent({ ...newStudent, mentorId: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+              >
+                <option value="">Unassigned</option>
+                {mentors.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.designation || m.expertise})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Assign Batch</label>
+              <select
+                value={newStudent.batchId}
+                onChange={(e) => setNewStudent({ ...newStudent, batchId: e.target.value })}
+                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+              >
+                <option value="">Unassigned</option>
+                {batches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -561,38 +683,6 @@ export default function AdminStudentsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Domain Track</label>
-              <select
-                value={newStudent.domain}
-                onChange={(e) => setNewStudent({ ...newStudent, domain: e.target.value })}
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
-              >
-                {DOMAINS.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Assign Batch</label>
-              <select
-                value={newStudent.batchId}
-                onChange={(e) => setNewStudent({ ...newStudent, batchId: e.target.value })}
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
-              >
-                <option value="">Unassigned</option>
-                {batches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
             <button
               type="button"
@@ -612,14 +702,25 @@ export default function AdminStudentsPage() {
       {selectedStudent && (
         <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Student Profile & Assignments">
           <form onSubmit={handleEditSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
-              <input
-                type="text"
-                value={selectedStudent.name}
-                onChange={(e) => setSelectedStudent({ ...selectedStudent, name: e.target.value })}
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={selectedStudent.name}
+                  onChange={(e) => setSelectedStudent({ ...selectedStudent, name: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={selectedStudent.phone || ''}
+                  onChange={(e) => setSelectedStudent({ ...selectedStudent, phone: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -632,6 +733,73 @@ export default function AdminStudentsPage() {
                 >
                   <option value="ACTIVE">ACTIVE</option>
                   <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Reset Password (Optional)</label>
+                <input
+                  type="password"
+                  placeholder="Leave blank to keep existing password"
+                  value={editStudentPassword}
+                  onChange={(e) => setEditStudentPassword(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Domain</label>
+                <select
+                  value={selectedStudent.domain || ''}
+                  onChange={(e) => setSelectedStudent({ ...selectedStudent, domain: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+                >
+                  {domains.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Internship</label>
+                <select
+                  value={selectedStudent.courseId || selectedStudent.enrolledCourseId || ''}
+                  onChange={(e) => setSelectedStudent({ ...selectedStudent, courseId: e.target.value, enrolledCourseId: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {programs.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Mentor</label>
+                <select
+                  value={selectedStudent.mentor?.id || ''}
+                  onChange={(e) =>
+                    setSelectedStudent({
+                      ...selectedStudent,
+                      mentor: mentors.find((m) => m.id === e.target.value) || null,
+                    })
+                  }
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
+                >
+                  <option value="">No Mentor</option>
+                  {mentors.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.designation})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -657,25 +825,25 @@ export default function AdminStudentsPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Mentor</label>
-              <select
-                value={selectedStudent.mentor?.id || ''}
-                onChange={(e) =>
-                  setSelectedStudent({
-                    ...selectedStudent,
-                    mentor: mentors.find((m) => m.id === e.target.value) || null,
-                  })
-                }
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white"
-              >
-                <option value="">No Mentor</option>
-                {mentors.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.designation})
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">College</label>
+                <input
+                  type="text"
+                  value={selectedStudent.college || ''}
+                  onChange={(e) => setSelectedStudent({ ...selectedStudent, college: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  value={selectedStudent.department || ''}
+                  onChange={(e) => setSelectedStudent({ ...selectedStudent, department: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300"
+                />
+              </div>
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">

@@ -34,6 +34,8 @@ export default function AdminAttendancePage() {
   // Filters
   const [selectedCourse, setSelectedCourse] = useState('ALL');
   const [selectedMentor, setSelectedMentor] = useState('ALL');
+  const [selectedDomain, setSelectedDomain] = useState('ALL');
+  const [domains, setDomains] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedDate, setSelectedDate] = useState('');
   const [search, setSearch] = useState('');
@@ -63,15 +65,17 @@ export default function AdminAttendancePage() {
       const query = new URLSearchParams();
       if (selectedCourse !== 'ALL') query.set('courseId', selectedCourse);
       if (selectedMentor !== 'ALL') query.set('mentorId', selectedMentor);
+      if (selectedDomain !== 'ALL') query.set('domain', selectedDomain);
       if (selectedStatus !== 'ALL') query.set('status', selectedStatus);
       if (selectedDate) query.set('date', selectedDate);
       if (search) query.set('search', search);
 
-      const [attRes, courseRes, mentorRes, studentRes] = await Promise.all([
+      const [attRes, courseRes, mentorRes, studentRes, domRes] = await Promise.all([
         fetch(`/api/admin/attendance?${query.toString()}`),
         fetch('/api/admin/courses'),
         fetch('/api/admin/mentors'),
         fetch('/api/admin/students'),
+        fetch('/api/public/domains'),
       ]);
 
       if (attRes.ok) {
@@ -91,6 +95,10 @@ export default function AdminAttendancePage() {
         const sData = await studentRes.json();
         setStudents(sData.students || []);
       }
+      if (domRes.ok) {
+        const dData = await domRes.json();
+        setDomains(dData.domains || []);
+      }
     } catch (err) {
       console.error(err);
       showNotification('error', 'Failed to load attendance registry');
@@ -101,7 +109,7 @@ export default function AdminAttendancePage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedCourse, selectedMentor, selectedStatus, selectedDate, search]);
+  }, [selectedCourse, selectedMentor, selectedDomain, selectedStatus, selectedDate, search]);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -329,9 +337,20 @@ export default function AdminAttendancePage() {
               onChange={(e) => setSelectedCourse(e.target.value)}
               className="text-xs p-1.5 border border-slate-200 rounded-lg text-slate-700 bg-white"
             >
-              <option value="ALL">All Courses</option>
+              <option value="ALL">All Internships</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedDomain}
+              onChange={(e) => setSelectedDomain(e.target.value)}
+              className="text-xs p-1.5 border border-slate-200 rounded-lg text-slate-700 bg-white"
+            >
+              <option value="ALL">All Domains</option>
+              {domains.map((d) => (
+                <option key={d} value={d}>{d}</option>
               ))}
             </select>
 
