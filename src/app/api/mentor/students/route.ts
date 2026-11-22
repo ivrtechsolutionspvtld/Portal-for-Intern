@@ -1,37 +1,62 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getAuthenticatedMentor } from '@/lib/mentor-auth';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export async function GET(req: Request) {
   try {
-    const user = await getSessionUser();
-    if (!user || user.role !== 'MENTOR') {
-      return NextResponse.json({ error: 'Unauthorized: Mentor access required' }, { status: 403 });
+    const auth = await getAuthenticatedMentor(req);
+    if (!auth.success) {
+      return auth.response;
     }
 
-    const mentor = await prisma.mentorProfile.findUnique({
-      where: { userId: user.id },
-    });
+    const { mentorProfile } = auth.data;
 
-    if (!mentor) {
-      return NextResponse.json({ error: 'Mentor profile not found' }, { status: 404 });
-    }
-
+    // Strict access control: Query ONLY students assigned to this mentor
     const students = await prisma.studentProfile.findMany({
-      where: { mentorId: mentor.id },
+      where: { mentorId: mentorProfile.id },
       include: {
-        user: { select: { id: true, name: true, email: true, phone: true, avatar: true, status: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatar: true,
+            status: true,
+            createdAt: true,
+          },
+        },
         batch: { select: { id: true, name: true, domain: true } },
-        attendanceRecords: true,
-        submissions: { include: { project: true } },
+        course: { select: { id: true, title: true, code: true } },
+        attendanceRecords: {
+          orderBy: { date: 'desc' },
+          take: 30,
+        },
+        submissions: {
+          include: { project: true },
+          orderBy: { submittedAt: 'desc' },
+        },
         certificate: true,
+        mentorNotes: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
+        quizAttempts: {
+          include: { quiz: { select: { title: true } } },
+          orderBy: { submittedAt: 'desc' },
+        },
       },
       orderBy: { user: { name: 'asc' } },
     });
 
     const formatted = students.map((s) => {
       const totalAtt = s.attendanceRecords.length;
-      const presentAtt = s.attendanceRecords.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').length;
+      const presentAtt = s.attendanceRecords.filter(
+        (a) => a.status === 'PRESENT' || a.status === 'LATE'
+      ).length;
       const attendancePercent = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 100;
 
       const approvedProjects = s.submissions.filter((sub) => sub.status === 'APPROVED').length;
@@ -40,6 +65,7 @@ export async function GET() {
       return {
         id: s.id,
         userId: s.userId,
+        studentId: s.studentId,
         name: s.user.name,
         email: s.user.email,
         phone: s.user.phone,
@@ -47,23 +73,46 @@ export async function GET() {
         status: s.user.status,
         college: s.college,
         department: s.department,
+        degree: s.degree,
+        academicYear: s.academicYear,
         graduationYear: s.graduationYear,
+        regNumber: s.regNumber,
         domain: s.domain,
+        courseTitle: s.course?.title || s.domain,
+        batchId: s.batchId,
         batchName: s.batch?.name || 'Unassigned',
         cgpa: s.cgpa,
         resumeUrl: s.resumeUrl,
+        enrollmentDate: s.enrollmentDate,
         attendancePercent,
+        attendanceTotal: totalAtt,
+        attendancePresent: presentAtt,
+        attendanceStatus: attendancePercent >= 75 ? 'ELIGIBLE' : 'AT_RISK',
         approvedProjects,
         totalProjects,
         hasCertificate: !!s.certificate,
         certificateNumber: s.certificate?.certificateNumber || null,
         submissions: s.submissions,
+        notesCount: s.mentorNotes.length,
+        quizAttemptsCount: s.quizAttempts.length,
       };
     });
 
-    return NextResponse.json({ students: formatted });
-  } catch (error) {
-    console.error('Mentor students error:', error);
-    return NextResponse.json({ error: 'Failed to fetch assigned students' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      mentor: {
+        id: mentorProfile.id,
+        name: auth.data.user.name,
+        designation: mentorProfile.designation,
+      },
+      count: formatted.length,
+      students: formatted,
+    });
+  } catch (error: any) {
+    console.error('Mentor students fetch error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch assigned students' },
+      { status: 500 }
+    );
   }
 }

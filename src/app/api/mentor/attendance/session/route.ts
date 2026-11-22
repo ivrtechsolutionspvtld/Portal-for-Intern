@@ -1,37 +1,40 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getAuthenticatedMentor } from '@/lib/mentor-auth';
 import { generateAttendanceToken, generateQRCodeDataUrl } from '@/lib/qr';
 import { logAuditEvent } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req: Request) {
   try {
-    const user = await getSessionUser();
-    if (!user || user.role !== 'MENTOR') {
-      return NextResponse.json({ error: 'Unauthorized: Mentor access required' }, { status: 403 });
+    const auth = await getAuthenticatedMentor(req);
+    if (!auth.success) {
+      return auth.response;
     }
 
-    const mentor = await prisma.mentorProfile.findUnique({
-      where: { userId: user.id },
-    });
-
-    if (!mentor) {
-      return NextResponse.json({ error: 'Mentor profile not found' }, { status: 404 });
-    }
-
+    const { user, mentorProfile } = auth.data;
     const { batchId, durationMinutes = 15 } = await req.json();
 
     if (!batchId) {
       return NextResponse.json({ error: 'Batch ID is required' }, { status: 400 });
     }
 
-    // Verify mentor owns or teaches this batch
+    // Verify batch exists and belongs to this mentor
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
     });
 
     if (!batch) {
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
+    }
+
+    if (batch.mentorId && batch.mentorId !== mentorProfile.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: You are not authorized to create an attendance session for this batch.' },
+        { status: 403 }
+      );
     }
 
     // Deactivate previous active sessions for this batch
@@ -42,14 +45,14 @@ export async function POST(req: Request) {
 
     const sessionId = `SESSION-${Date.now()}`;
     const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
-    const token = generateAttendanceToken(sessionId, batchId, mentor.id);
+    const token = generateAttendanceToken(sessionId, batchId, mentorProfile.id);
 
     // Save session in database
     const session = await prisma.attendanceSession.create({
       data: {
         id: sessionId,
         batchId,
-        mentorId: mentor.id,
+        mentorId: mentorProfile.id,
         sessionDate: new Date(),
         token,
         expiresAt,
@@ -64,9 +67,9 @@ export async function POST(req: Request) {
       userId: user.id,
       userEmail: user.email,
       userRole: 'MENTOR',
-      action: 'ATTENDANCE_SESSION_CREATE',
+      action: 'ATTENDANCE_SESSION_CREATED',
       module: 'ATTENDANCE',
-      details: `Generated dynamic attendance QR session for batch ${batch.name} valid until ${expiresAt.toISOString()}`,
+      details: `Created attendance session for batch ${batch.name} (${batchId}), expires in ${durationMinutes} mins`,
     });
 
     return NextResponse.json({
@@ -76,12 +79,14 @@ export async function POST(req: Request) {
         batchName: batch.name,
         expiresAt: session.expiresAt,
         token: session.token,
-        qrDataUrl,
-        durationMinutes,
+        qrCode: qrDataUrl,
       },
     });
-  } catch (error) {
-    console.error('QR Session generation error:', error);
-    return NextResponse.json({ error: 'Failed to generate dynamic attendance session' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Create attendance session error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to create attendance session' },
+      { status: 500 }
+    );
   }
 }

@@ -68,6 +68,9 @@ model StudentProfile {
   certificate       Certificate?
   paymentOrders     PaymentOrder[]
   conversations     Conversation[]
+  mentorNotes       MentorNote[]
+  quizAttempts      QuizAttempt[]
+  certificateRecommendations CertificateRecommendation[]
 }
 
 model MentorProfile {
@@ -88,6 +91,12 @@ model MentorProfile {
   batches          Batch[]
   attendanceSessions AttendanceSession[]
   conversations    Conversation[]
+  courses          Course[]         @relation("MentorCourses")
+  notes            MentorNote[]
+  assignmentHistory MentorAssignmentHistory[]
+  quizzes          Quiz[]
+  certificateRecommendations CertificateRecommendation[]
+  createdProjects  Project[]        @relation("MentorProjects")
 }
 
 model Application {
@@ -145,6 +154,7 @@ model Course {
   modules       Module[]
   students      StudentProfile[]
   programs      InternshipProgram[]
+  mentors       MentorProfile[]   @relation("MentorCourses")
 }
 
 model InternshipProgram {
@@ -235,6 +245,9 @@ model Project {
   maxScore     Int         @default(100)
   batchId      String?
   batch        Batch?      @relation(fields: [batchId], references: [id])
+  mentorId     String?
+  mentor       MentorProfile? @relation("MentorProjects", fields: [mentorId], references: [id], onDelete: SetNull)
+  courseId     String?
   createdAt    DateTime    @default(now())
 
   submissions  ProjectSubmission[]
@@ -390,4 +403,88 @@ model SystemSettings {
   mandatoryStudentFields      String?  @default("name,email,phone,college,department,graduationYear")
   googleFormsUrl             String?  @default("https://forms.gle/qF6Qx398Lw4b6c3L6")
   updatedAt                  DateTime @updatedAt
+}
+
+model MentorAssignmentHistory {
+  id             String        @id @default(uuid())
+  mentorId       String
+  mentor         MentorProfile @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  studentId      String?
+  batchId        String?
+  courseId       String?
+  assignmentType String        // STUDENT, BATCH, COURSE
+  action         String        // ASSIGNED, REASSIGNED, REMOVED
+  assignedBy     String
+  reason         String?
+  timestamp      DateTime      @default(now())
+}
+
+model MentorNote {
+  id        String         @id @default(uuid())
+  mentorId  String
+  mentor    MentorProfile  @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  note      String
+  category  String         @default("GENERAL") // ACADEMIC, PERFORMANCE, BEHAVIORAL, GENERAL
+  isPrivate Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Quiz {
+  id              String         @id @default(uuid())
+  title           String
+  description     String?
+  courseId        String?
+  batchId         String?
+  mentorId        String
+  mentor          MentorProfile  @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  durationMinutes Int            @default(30)
+  passScore       Int            @default(60)
+  status          String         @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  questions       QuizQuestion[]
+  attempts        QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String   @id @default(uuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question     String
+  options      String   // JSON string of options e.g. ["A", "B", "C", "D"]
+  correctIndex Int
+  explanation  String?
+  points       Int      @default(1)
+}
+
+model QuizAttempt {
+  id          String         @id @default(uuid())
+  quizId      String
+  quiz        Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score       Int
+  maxScore    Int
+  passed      Boolean
+  answers     String?        // JSON string of submitted answers
+  submittedAt DateTime       @default(now())
+}
+
+model CertificateRecommendation {
+  id                String         @id @default(uuid())
+  studentId         String
+  student           StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId          String
+  mentor            MentorProfile  @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  status            String         @default("PENDING") // PENDING, APPROVED, REJECTED
+  performanceRating String         // EXCELLENT, VERY_GOOD, GOOD, SATISFACTORY
+  feedback          String
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }

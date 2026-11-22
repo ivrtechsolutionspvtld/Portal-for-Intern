@@ -1,56 +1,98 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, getAuthFromRequest } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { sendEmailNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const admin = await getSessionUser();
+    let admin: any = await getAuthFromRequest(req);
+    if (!admin) {
+      admin = await getSessionUser();
+    }
     if (!admin || admin.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized: Admin access required.' }, { status: 403 });
     }
 
-    const students = await prisma.studentProfile.findMany({
-      include: {
-        user: { select: { id: true, name: true, email: true, phone: true, status: true, isDemo: true } },
-        course: { select: { id: true, title: true, code: true, department: true } },
-        mentor: {
-          include: {
-            user: { select: { name: true, email: true } },
+    const [students, mentors, courses, batches, assignmentHistory] = await Promise.all([
+      // 1. Students
+      prisma.studentProfile.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, status: true, isDemo: true, avatar: true },
           },
+          course: { select: { id: true, title: true, code: true, department: true } },
+          mentor: {
+            include: {
+              user: { select: { name: true, email: true } },
+            },
+          },
+          batch: { select: { id: true, name: true } },
         },
-        batch: { select: { id: true, name: true } },
-      },
-      orderBy: { enrollmentDate: 'desc' },
-    });
+        orderBy: { enrollmentDate: 'desc' },
+      }),
+      // 2. Mentors with workload
+      prisma.mentorProfile.findMany({
+        include: {
+          user: { select: { id: true, name: true, email: true, status: true, isDemo: true, avatar: true } },
+          _count: { select: { assignedStudents: true, batches: true } },
+        },
+        where: {
+          user: { status: 'ACTIVE' },
+        },
+        orderBy: { user: { name: 'asc' } },
+      }),
+      // 3. Courses
+      prisma.course.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, title: true, code: true, department: true, domain: true },
+        orderBy: { title: 'asc' },
+      }),
+      // 4. Batches
+      prisma.batch.findMany({
+        include: {
+          mentor: { include: { user: { select: { name: true, email: true } } } },
+          _count: { select: { students: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // 5. Recent Assignment History
+      prisma.mentorAssignmentHistory.findMany({
+        include: {
+          mentor: { include: { user: { select: { name: true, email: true } } } },
+        },
+        orderBy: { timestamp: 'desc' },
+        take: 50,
+      }),
+    ]);
 
-    const mentors = await prisma.mentorProfile.findMany({
-      include: {
-        user: { select: { id: true, name: true, email: true, status: true, isDemo: true } },
-        _count: { select: { assignedStudents: true } },
-      },
-      where: {
-        user: { status: 'ACTIVE' },
-      },
-      orderBy: { user: { name: 'asc' } },
-    });
-
-    const courses = await prisma.course.findMany({
-      where: { status: 'ACTIVE' },
-      select: { id: true, title: true, code: true, department: true },
-      orderBy: { title: 'asc' },
+    const mentorsWithWorkload = mentors.map((m) => {
+      const assigned = m._count.assignedStudents;
+      const capacity = m.maxStudents || 30;
+      const percentage = Math.round((assigned / capacity) * 100);
+      const isOverloaded = assigned >= capacity;
+      return {
+        ...m,
+        workload: {
+          assigned,
+          capacity,
+          percentage,
+          isOverloaded,
+        },
+      };
     });
 
     return NextResponse.json(
       {
         success: true,
         students,
-        mentors,
+        mentors: mentorsWithWorkload,
         courses,
+        batches,
+        assignmentHistory,
       },
       {
         headers: {
@@ -68,109 +110,215 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const admin = await getSessionUser();
+    let admin: any = await getAuthFromRequest(req);
+    if (!admin) {
+      admin = await getSessionUser();
+    }
     if (!admin || admin.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized: Admin access required.' }, { status: 403 });
     }
 
-    const { studentProfileId, newMentorId, newCourseId, reason } = await req.json();
+    const body = await req.json();
+    const {
+      studentProfileId,
+      studentProfileIds,
+      newMentorId,
+      newCourseId,
+      newBatchId,
+      reason,
+      action = 'ASSIGN_STUDENT',
+    } = body;
 
-    if (!studentProfileId) {
-      return NextResponse.json({ error: 'Student Profile ID is required.' }, { status: 400 });
-    }
+    // Support single or bulk assignment
+    const targetIds: string[] = studentProfileIds && Array.isArray(studentProfileIds)
+      ? studentProfileIds
+      : studentProfileId
+      ? [studentProfileId]
+      : [];
 
-    const studentProfile = await prisma.studentProfile.findUnique({
-      where: { id: studentProfileId },
-      include: {
-        user: true,
-        mentor: { include: { user: true } },
-        course: true,
-      },
-    });
-
-    if (!studentProfile) {
-      return NextResponse.json({ error: 'Student profile not found.' }, { status: 404 });
-    }
-
-    const updateData: any = {};
-    let mentorChangeDesc = '';
-    let courseChangeDesc = '';
-
-    if (newMentorId) {
-      const newMentor = await prisma.mentorProfile.findUnique({
-        where: { id: newMentorId },
-        include: { user: true },
-      });
-      if (!newMentor) {
-        return NextResponse.json({ error: 'Target mentor not found.' }, { status: 404 });
+    if (action === 'ASSIGN_BATCH') {
+      // Assign mentor to a batch
+      if (!newBatchId || !newMentorId) {
+        return NextResponse.json({ error: 'Batch ID and Mentor ID are required.' }, { status: 400 });
       }
-      updateData.mentorId = newMentor.id;
-      mentorChangeDesc = `Mentor changed from ${studentProfile.mentor?.user.name || 'Unassigned'} to ${newMentor.user.name}`;
+      const batch = await prisma.batch.update({
+        where: { id: newBatchId },
+        data: { mentorId: newMentorId === 'UNASSIGN' ? null : newMentorId },
+        include: { mentor: { include: { user: true } } },
+      });
 
-      // Notify student
-      await prisma.notification.create({
-        data: {
-          userId: studentProfile.userId,
-          title: 'Faculty Mentor Reassigned',
-          message: `Your technical mentor has been updated to ${newMentor.user.name} (${newMentor.designation}, ${newMentor.department}). Reason: ${reason || 'Administrative re-allocation'}.`,
-          type: 'INFO',
-          link: '/student',
+      if (newMentorId !== 'UNASSIGN') {
+        await prisma.mentorAssignmentHistory.create({
+          data: {
+            mentorId: newMentorId,
+            batchId: newBatchId,
+            assignmentType: 'BATCH',
+            action: 'ASSIGNED',
+            assignedBy: admin.email,
+            reason: reason || 'Batch assigned to mentor',
+          },
+        });
+      }
+
+      await logAuditEvent({
+        userId: admin.id,
+        userEmail: admin.email,
+        userRole: 'ADMIN',
+        action: 'BATCH_MENTOR_ALLOCATION',
+        module: 'MENTOR_ALLOCATION',
+        details: `Batch ${batch.name} allocated to mentor ${batch.mentor?.user.name || 'Unassigned'}. Reason: ${reason || 'Admin action'}`,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Batch mentor allocation updated successfully.',
+        batch,
+      });
+    }
+
+    if (targetIds.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one studentProfileId or studentProfileIds is required.' },
+        { status: 400 }
+      );
+    }
+
+    const results = [];
+
+    for (const sId of targetIds) {
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { id: sId },
+        include: {
+          user: true,
+          mentor: { include: { user: true } },
+          course: true,
+          batch: true,
         },
       });
 
-      // Send transactional email
-      await sendEmailNotification({
-        to: studentProfile.user.email,
-        subject: 'IVR Tech Solutions - Mentor Assignment Update',
-        template: 'ACCOUNT_STATUS_CHANGE',
-        variables: {
-          name: studentProfile.user.name,
-          status: 'ACTIVE',
-          message: `Your faculty mentor has been updated to ${newMentor.user.name}. You can connect with your mentor through the student portal.`,
+      if (!studentProfile) continue;
+
+      const updateData: any = {};
+      let mentorChangeDesc = '';
+      let courseChangeDesc = '';
+      let batchChangeDesc = '';
+
+      // Handle Mentor Assignment / Unassignment
+      if (newMentorId !== undefined) {
+        if (newMentorId === 'UNASSIGN' || newMentorId === null || newMentorId === '') {
+          updateData.mentorId = null;
+          mentorChangeDesc = `Mentor unassigned from ${studentProfile.mentor?.user.name || 'None'}`;
+
+          if (studentProfile.mentorId) {
+            await prisma.mentorAssignmentHistory.create({
+              data: {
+                mentorId: studentProfile.mentorId,
+                studentId: studentProfile.id,
+                assignmentType: 'STUDENT',
+                action: 'REMOVED',
+                assignedBy: admin.email,
+                reason: reason || 'Unassigned by Administrator',
+              },
+            });
+          }
+        } else {
+          const newMentor = await prisma.mentorProfile.findUnique({
+            where: { id: newMentorId },
+            include: { user: true },
+          });
+
+          if (newMentor) {
+            updateData.mentorId = newMentor.id;
+            mentorChangeDesc = `Mentor assigned to ${newMentor.user.name} (${newMentor.designation})`;
+
+            // Record assignment history
+            await prisma.mentorAssignmentHistory.create({
+              data: {
+                mentorId: newMentor.id,
+                studentId: studentProfile.id,
+                assignmentType: 'STUDENT',
+                action: studentProfile.mentorId ? 'REASSIGNED' : 'ASSIGNED',
+                assignedBy: admin.email,
+                reason: reason || 'Administrative mentor allocation',
+              },
+            });
+
+            // Notify student in-app
+            await prisma.notification.create({
+              data: {
+                userId: studentProfile.userId,
+                title: 'Technical Mentor Assigned',
+                message: `You have been assigned to faculty mentor ${newMentor.user.name} (${newMentor.designation}). You can connect with them through the Student Portal.`,
+                type: 'INFO',
+                link: '/student',
+              },
+            });
+
+            // Transactional email
+            await sendEmailNotification({
+              to: studentProfile.user.email,
+              subject: 'IVR Tech Solutions - Mentor Allocation Update',
+              template: 'ACCOUNT_STATUS_CHANGE',
+              variables: {
+                name: studentProfile.user.name,
+                status: 'ACTIVE',
+                message: `Your technical faculty mentor is ${newMentor.user.name}. You can connect and submit deliverables through your student portal.`,
+              },
+            });
+          }
+        }
+      }
+
+      // Handle Course Assignment
+      if (newCourseId) {
+        const newCourse = await prisma.course.findUnique({ where: { id: newCourseId } });
+        if (newCourse) {
+          updateData.courseId = newCourse.id;
+          updateData.domain = newCourse.domain;
+          courseChangeDesc = `Course track set to ${newCourse.title}`;
+        }
+      }
+
+      // Handle Batch Assignment
+      if (newBatchId !== undefined) {
+        updateData.batchId = newBatchId === 'UNASSIGN' ? null : newBatchId;
+        batchChangeDesc = `Batch set to ${newBatchId || 'Unassigned'}`;
+      }
+
+      updateData.allocatedBy = admin.email;
+      updateData.allocatedAt = new Date();
+
+      const updated = await prisma.studentProfile.update({
+        where: { id: sId },
+        data: updateData,
+        include: {
+          course: true,
+          mentor: { include: { user: true } },
+          batch: true,
         },
       });
+
+      // Record audit log
+      const details = [mentorChangeDesc, courseChangeDesc, batchChangeDesc].filter(Boolean).join('. ');
+      await logAuditEvent({
+        userId: admin.id,
+        userEmail: admin.email,
+        userRole: 'ADMIN',
+        action: 'ADMIN_REASSIGNED_ALLOCATION',
+        module: 'MENTOR_ALLOCATION',
+        details: `Updated allocation for ${studentProfile.user.name} (${studentProfile.studentId}): ${details}. Reason: ${reason || 'Administrative allocation'}`,
+      });
+
+      results.push(updated);
     }
-
-    if (newCourseId) {
-      const newCourse = await prisma.course.findUnique({ where: { id: newCourseId } });
-      if (!newCourse) {
-        return NextResponse.json({ error: 'Target course not found.' }, { status: 404 });
-      }
-      updateData.courseId = newCourse.id;
-      updateData.domain = newCourse.domain;
-      courseChangeDesc = `Course track changed from ${studentProfile.course?.title || studentProfile.domain} to ${newCourse.title}`;
-    }
-
-    updateData.allocatedBy = admin.email;
-    updateData.allocatedAt = new Date();
-
-    const updated = await prisma.studentProfile.update({
-      where: { id: studentProfileId },
-      data: updateData,
-      include: {
-        course: true,
-        mentor: { include: { user: true } },
-      },
-    });
-
-    // Record audit log
-    await logAuditEvent({
-      userId: admin.id,
-      userEmail: admin.email,
-      userRole: 'ADMIN',
-      action: 'ADMIN_REASSIGNED_ALLOCATION',
-      module: 'MENTOR_ALLOCATION',
-      details: `Reassigned for ${studentProfile.user.name} (${studentProfile.studentId}): ${[mentorChangeDesc, courseChangeDesc].filter(Boolean).join('. ')}. Remarks: ${reason || 'Administrative adjustment'}`,
-    });
 
     return NextResponse.json({
       success: true,
-      message: 'Allocation updated successfully with audit trail.',
-      student: updated,
+      message: `Successfully updated allocation for ${results.length} student(s) with full audit logging.`,
+      updatedStudents: results,
     });
   } catch (err: any) {
     console.error('Allocation update error:', err);
     return NextResponse.json({ error: err.message || 'Failed to update allocation' }, { status: 500 });
   }
 }
-

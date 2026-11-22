@@ -268,11 +268,10 @@ export default function StudentMessagesPage() {
                           className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                         >
                           <div
-                            className={`max-w-md p-3.5 rounded-2xl text-xs leading-relaxed shadow-2xs ${
-                              isMe
-                                ? 'bg-[#5B21B6] text-white rounded-br-xs'
-                                : 'bg-white text-slate-800 border border-slate-200 rounded-bl-xs'
-                            }`}
+                            className={`max-w-md p-3.5 rounded-2xl text-xs leading-relaxed shadow-2xs ${isMe
+                              ? 'bg-[#5B21B6] text-white rounded-br-xs'
+                              : 'bg-white text-slate-800 border border-slate-200 rounded-bl-xs'
+                              }`}
                           >
                             <p>{m.content}</p>
                             {m.attachmentUrl && (
@@ -281,9 +280,8 @@ export default function StudentMessagesPage() {
                                   href={m.attachmentUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold underline break-all ${
-                                    isMe ? 'text-purple-200' : 'text-[#6D28D9]'
-                                  }`}
+                                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold underline break-all ${isMe ? 'text-purple-200' : 'text-[#6D28D9]'
+                                    }`}
                                 >
                                   <Paperclip className="w-3 h-3" />
                                   <span>Attached Document / Repository Link</span>
@@ -330,11 +328,10 @@ export default function StudentMessagesPage() {
                     <button
                       type="button"
                       onClick={() => setShowAttachmentInput(!showAttachmentInput)}
-                      className={`p-2.5 rounded-xl border transition-colors ${
-                        showAttachmentInput
-                          ? 'bg-purple-100 text-[#5B21B6] border-purple-300'
-                          : 'text-slate-400 border-slate-200 hover:text-[#6D28D9] hover:bg-slate-50'
-                      }`}
+                      className={`p-2.5 rounded-xl border transition-colors ${showAttachmentInput
+                        ? 'bg-purple-100 text-[#5B21B6] border-purple-300'
+                        : 'text-slate-400 border-slate-200 hover:text-[#6D28D9] hover:bg-slate-50'
+                        }`}
                       title="Attach URL"
                     >
                       <Paperclip className="w-4 h-4" />
