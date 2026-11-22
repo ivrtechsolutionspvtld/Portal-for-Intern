@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, getAuthFromRequest } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const user = await getSessionUser();
+    let user: any = await getAuthFromRequest(req);
+    if (!user) user = await getSessionUser();
     if (!user || user.role !== 'STUDENT') {
       return NextResponse.json({ error: 'Unauthorized: Student access required' }, { status: 403 });
     }
@@ -20,11 +21,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
-    // Find course matching student's domain
+    // Find course matching student's assigned courseId or domain
     const course = await prisma.course.findFirst({
-      where: { domain: student.domain },
+      where: student.courseId ? { id: student.courseId } : { domain: student.domain },
       include: {
         modules: {
+          where: { status: 'PUBLISHED' },
           orderBy: { orderIndex: 'asc' },
         },
       },
@@ -80,7 +82,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const user = await getSessionUser();
+    let user: any = await getAuthFromRequest(req);
+    if (!user) user = await getSessionUser();
     if (!user || user.role !== 'STUDENT') {
       return NextResponse.json({ error: 'Unauthorized: Student access required' }, { status: 403 });
     }

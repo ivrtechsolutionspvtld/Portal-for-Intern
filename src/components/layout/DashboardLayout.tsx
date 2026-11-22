@@ -36,6 +36,7 @@ import {
   ShieldCheck,
   CheckSquare,
   Briefcase,
+  HelpCircle,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -141,21 +142,24 @@ export default function DashboardLayout({ role, children }: DashboardLayoutProps
   ];
 
   const mentorNav = [
-    { label: 'Overview & Analytics', href: '/mentor', icon: LayoutDashboard },
-    { label: 'Mentor Profile', href: '/mentor/profile', icon: UserCheck },
+    { label: 'Overview', href: '/mentor', icon: LayoutDashboard },
     { label: 'Assigned Students', href: '/mentor/students', icon: Users },
-    { label: 'Attendance & QR Scanner', href: '/mentor/attendance', icon: QrCode },
+    { label: 'My Learning Hub', href: '/mentor/learning', icon: BookOpen },
     { label: 'Assignments & Reviews', href: '/mentor/projects', icon: FolderGit2 },
+    { label: 'Quizzes', href: '/mentor/quizzes', icon: HelpCircle },
+    { label: 'Attendance & QR', href: '/mentor/attendance', icon: QrCode },
     { label: 'Student Communication', href: '/mentor/messages', icon: MessageSquare },
     { label: 'Announcements', href: '/mentor/announcements', icon: Bell },
-    { label: 'Cohort Reports', href: '/mentor/reports', icon: FileSpreadsheet },
+    { label: 'Reports & Analytics', href: '/mentor/reports', icon: BarChart3 },
+    { label: 'Profile & Settings', href: '/mentor/profile', icon: UserCheck },
   ];
 
   const studentNav = [
     { label: 'Overview', href: '/student', icon: LayoutDashboard },
     { label: 'Student Profile', href: '/student/profile', icon: Users },
     { label: 'Learning Resources', href: '/student/learning', icon: BookOpen },
-    { label: 'Attendance & Daily Check-in', href: '/student/attendance', icon: CalendarCheck },
+    { label: 'Quizzes & Tests', href: '/student/quizzes', icon: HelpCircle },
+    { label: 'Attendance & Check-in', href: '/student/attendance', icon: CalendarCheck },
     { label: 'Assignments & Tasks', href: '/student/projects', icon: FolderGit2 },
     { label: 'Mentor Messages', href: '/student/messages', icon: MessageSquare },
     { label: 'Announcements', href: '/student/announcements', icon: Bell },

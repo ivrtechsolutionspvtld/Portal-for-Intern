@@ -186,6 +186,7 @@ model Module {
   videoUrl        String?
   pdfUrl          String?
   notes           String?
+  status          String    @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
   
   progress        CourseProgress[]
 }
@@ -236,19 +237,23 @@ model AttendanceRecord {
 }
 
 model Project {
-  id           String      @id @default(uuid())
-  title        String
-  domain       String
-  description  String
-  requirements String
-  deadline     DateTime
-  maxScore     Int         @default(100)
-  batchId      String?
-  batch        Batch?      @relation(fields: [batchId], references: [id])
-  mentorId     String?
-  mentor       MentorProfile? @relation("MentorProjects", fields: [mentorId], references: [id], onDelete: SetNull)
-  courseId     String?
-  createdAt    DateTime    @default(now())
+  id              String      @id @default(uuid())
+  title           String
+  domain          String
+  description     String
+  requirements    String
+  deadline        DateTime
+  maxScore        Int         @default(100)
+  passingScore    Int?        @default(60)
+  type            String      @default("ASSIGNMENT") // ASSIGNMENT, CAPSTONE_PROJECT, MILESTONE_PROJECT
+  status          String      @default("PUBLISHED")  // DRAFT, PUBLISHED, ARCHIVED
+  instructionsUrl String?
+  batchId         String?
+  batch           Batch?      @relation(fields: [batchId], references: [id])
+  mentorId        String?
+  mentor          MentorProfile? @relation("MentorProjects", fields: [mentorId], references: [id], onDelete: SetNull)
+  courseId        String?
+  createdAt       DateTime    @default(now())
 
   submissions  ProjectSubmission[]
 }
@@ -442,6 +447,7 @@ model Quiz {
   mentor          MentorProfile  @relation(fields: [mentorId], references: [id], onDelete: Cascade)
   durationMinutes Int            @default(30)
   passScore       Int            @default(60)
+  maxAttempts     Int            @default(1)
   status          String         @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -455,9 +461,11 @@ model QuizQuestion {
   quizId       String
   quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   question     String
+  type         String   @default("MCQ") // MCQ, TRUE_FALSE, DESCRIPTIVE
   options      String   // JSON string of options e.g. ["A", "B", "C", "D"]
   correctIndex Int
   explanation  String?
+  sampleAnswer String?
   points       Int      @default(1)
 }
 
@@ -470,7 +478,9 @@ model QuizAttempt {
   score       Int
   maxScore    Int
   passed      Boolean
+  status      String         @default("EVALUATED") // SUBMITTED, PENDING_REVIEW, EVALUATED
   answers     String?        // JSON string of submitted answers
+  feedback    String?
   submittedAt DateTime       @default(now())
 }
 
